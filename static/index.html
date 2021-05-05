@@ -4,23 +4,251 @@
     <title>Stack Machine</title>
   </head>
   <body>
-    <h1>Stack Machine</h1>
-    <form action="/run" method="get" target="output" id="run_form">
-      <label>Program</label><br>
-      <input type="text" name="s"><br>
-      <label for="input_text">Input</label><br>
-      <textarea id="input_text" name="input" form="run_form"></textarea><br>
-      <input type="submit" value="Run">
-    </form>
-    <iframe name="output" src="empty"></iframe>
-    <p>Missing features</p>
-    <ul>
-      <li>$ sorting</li>
-      <li>expressions inside arrays (because I have to change a few things and I don't want to)</li>
-    </ul>
+    <div class="container">
+      <div class="window">
+        <div class="tile">
+          <p class="tile-title">Stack Machine</p>
+          <div class="tile-buttons">
+            <div class="button-x">
+              <p>X</p>
+            </div>
+          </div>
+        </div>
+        <form action="/run" method="get" target="output" id="run_form">
+          <label>Program</label><br />
+          <input type="text" name="s" /><br />
+          <label for="input_text">Input</label><br />
+          <textarea id="input_text" name="input" form="run_form"></textarea
+          ><br />
+          <input type="submit" value="Run" class="submit" />
+        </form>
+      </div>
+      <div class="terminal">
+        <div class="terminal-tile">C:\WINDOWS\system32\cmd.exe</div>
+        <iframe name="output" src="empty"></iframe>
+      </div>
+      <div class="window-error">
+        <div class="tile">
+          <p class="tile-title">Local Disk (C:) - Missing Features</p>
+          <div class="tile-buttons">
+            <div class="button-x">
+              <p>X</p>
+            </div>
+          </div>
+        </div>
+        <div class="error">
+          <img
+            src="data:image/png;base64,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"
+            alt=""
+          />
+          <div class="error-text">
+            <p><b>Missing features</b></p>
+            <ul>
+              <li>$ sorting</li>
+              <li>
+                expressions inside arrays (because I have to change a few things
+                and I don't want to)
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
-    <footer>
-      <a href="https://github.com/mendess/stack-machine">Code here</a>
-    </footer>
+      <footer>
+        <a href="https://github.com/mendess/stack-machine">Code here</a>
+      </footer>
+    </div>
   </body>
 </html>
+
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    font-family: "Tahoma";
+  }
+
+  body {
+    background: url(https://wallpapercave.com/wp/wp2754860.jpg);
+    background-repeat: no-repeat;
+    background-size: auto;
+  }
+
+  .container {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .window-error {
+    border: solid 3px rgba(20, 86, 213, 255);
+    border-top: solid 1px;
+    border-radius: 5px;
+    width: 40vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(235, 233, 216, 255);
+  }
+
+  .window-error ul {
+    list-style-position: inside;
+    padding: 10px;
+  }
+
+  .error {
+    display: flex;
+    flex: row;
+    align-items: center;
+    margin: 15px;
+  }
+
+  .error-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .window {
+    border: solid 3px rgba(20, 86, 213, 255);
+    border-top: solid 1px;
+    border-radius: 5px;
+    width: 40vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(235, 233, 216, 255);
+    margin: 20px;
+  }
+
+  .window form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin: 10px;
+  }
+
+  .window input,
+  textarea {
+    font-size: 17px;
+    font-weight: 10;
+  }
+
+  .window input,
+  textarea {
+    border: solid 1px rgba(108, 151, 191, 255);
+    background-color: rgba(254, 255, 254, 255);
+  }
+
+  .window input:focus,
+  textarea:focus {
+    outline: none;
+  }
+
+  .submit {
+    padding: 2px;
+    padding-left: 25px;
+    padding-right: 25px;
+    border-radius: 5px;
+    background-color: rgba(247, 247, 245, 255);
+    font-size: 10px;
+  }
+
+  .submit:active {
+    background: rgb(0, 56, 114);
+    background: linear-gradient(
+      0deg,
+      rgba(0, 56, 114, 1) 0%,
+      rgba(173, 195, 242, 1) 2%,
+      rgba(249, 249, 244, 1) 22%,
+      rgba(249, 249, 244, 1) 78%,
+      rgba(173, 195, 242, 1) 98%,
+      rgba(0, 56, 114, 1) 100%
+    );
+  }
+
+  .tile {
+    height: 35px;
+    background: rgb(35, 127, 255);
+    background: linear-gradient(
+      180deg,
+      rgba(35, 127, 255, 1) 0%,
+      rgba(0, 83, 236, 1) 14%,
+      rgba(0, 85, 242, 1) 47%,
+      rgba(28, 104, 227, 1) 97%,
+      rgba(16, 61, 174, 1) 100%
+    );
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .tile-title {
+    color: rgba(238, 254, 254, 255);
+    font-weight: bold;
+    text-shadow: 1px 1px 1px black;
+    padding: 5px;
+  }
+
+  .button-x {
+    width: 23px;
+    height: 23px;
+    background-color: red;
+    border-radius: 3px;
+    border: 1px solid rgba(254, 239, 255, 255);
+    background: rgb(200, 56, 22);
+    background: linear-gradient(
+      307deg,
+      rgba(200, 56, 22, 1) 0%,
+      rgba(226, 162, 138, 1) 100%
+    );
+    margin-right: 5px;
+    color: white;
+    font-weight: 500;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .button-x p {
+    transform: scale(1.5, 1);
+  }
+
+  iframe {
+    background-color: black;
+    color: rgba(192, 192, 193, 255);
+    border: 5px solid rgba(230, 225, 206, 255);
+  }
+
+  .terminal-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 35px;
+    width: 300px;
+    border: 5px solid rgba(230, 225, 206, 255);
+    border-bottom: none;
+    color: rgba(217, 228, 248, 255);
+    font-weight: bold;
+    text-shadow: 1px 1px 1px black;
+    background: rgb(3, 84, 229);
+    background: linear-gradient(
+      0deg,
+      rgba(3, 84, 229, 1) 0%,
+      rgba(56, 145, 255, 1) 100%
+    );
+  }
+
+  .terminal {
+    margin: 20px;
+  }
+</style>
