@@ -22,9 +22,12 @@ async fn run(req: HttpRequest, mut s: Query<Program>) -> impl Responder {
         Utc::now(),
         s
     );
+    fn wrap(s: String) -> String {
+        format!("<p style=\"color: rgba(198,199,196,255)\">{}</p>", s)
+    }
     match run_with_input(&s.s, Cursor::new(&s.input)) {
-        Ok(v) => HttpResponse::Ok().body(format!("[{}]", v.into_iter().format(","))),
-        Err(e) => HttpResponse::BadRequest().body(format!("{:?}", e)),
+        Ok(v) => HttpResponse::Ok().body(wrap(format!("[{}]", v.into_iter().format(",")))),
+        Err(e) => HttpResponse::BadRequest().body(wrap(format!("{:?}", e))),
     }
 }
 
