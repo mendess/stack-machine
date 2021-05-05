@@ -1,21 +1,30 @@
-# Expressões matemáticas
+# Stack Machine
 
-|x| + - * /     | Somar, subtrair, multiplicar e dividir   |
-|x| ( )         | Decrementar e incrementar um valor       |
-|x| %           | Módulo                                   |
-|x| #           | Exponenciação                            |
-|x| & &#x7c ^ ~ | E, ou, xor e not (bitwise) para inteiros |
 
-# Stack
+## Expressões matemáticas
 
+| done | ops         | example                                  |
+| ---  | ---         | ---                                      |
+| x    | + - * /     | Somar, subtrair, multiplicar e dividir   |
+| x    | ( )         | Decrementar e incrementar um valor       |
+| x    | %           | Módulo                                   |
+| x    | #           | Exponenciação                            |
+| x    | & &#x7c ^ ~ | E, ou, xor e not (bitwise) para inteiros |
+
+## Stack
+
+| done | ops         | example                                  |
+| ---  | ---         | ---                                      |
 |x| _   | Duplicar                                                        |
 |x| ;   | Pop                                                             |
 |x| \   | Trocar os dois elementos do topo da stack                       |
 |x| @   | Rodar os 3 elementos no topo da stack                           |
 |x| n $ | Copia n-ésimo elemento para o topo da stack 0 é o topo da stack |
 
-# Lógica
+## Lógica
 
+| done | ops         | example                                  |
+| ---  | ---         | ---                                      |
 |x| 0 ou vazio     | False                                 |
 |x| contrário de 0 | Verdadeiro                            |
 |x| =              | Igual                                 |
@@ -28,8 +37,10 @@
 |x| e>             | Coloca o maior dos 2 valores na stack |
 |x| ?              | If-Then-Else                          |
 
-# Variáveis
+## Variáveis
 
+| done | ops         | example                                  |
+| ---  | ---         | ---                                      |
 |x| A até Z  | Coloca no topo da stack o conteúdo da variável |
 |x| :<Letra> | Copia topo da stack à variável                 |
 |x| A        | Valor por omissão: 10                          |
@@ -44,21 +55,27 @@
 |x| Y        | Valor por omissão: 1                           |
 |x| Z        | Valor por omissão: 2                           |
 
-Input/Output
+## Input/Output
 
+| done | ops         | example                                  |
+| ---  | ---         | ---                                      |
 |x| l | Ler linha              |
 |x| t | Ler todas as linhas    |
 |x| p | Imprimir topo da stack |
 
-Conversões
+## Conversões
 
+| done | ops         | example                                  |
+| ---  | ---         | ---                                      |
 |x| i | Converter o topo da stack num inteiro   |
 |x| f | Converter o topo da stack num double    |
 |x| c | Converter o topo da stack para caratere |
 |x| s | Converter o topo da stack para string   |
 
-Arrays e strings
+## Arrays e strings
 
+| done | ops         | example                                  |
+| ---  | ---         | ---                                      |
 |x| ""  | Criar uma string                                                        |
 |x| []  | Criar um array                                                          |
 |x| ~   | Colocar na stack todos os elementos do array                            |
@@ -75,8 +92,10 @@ Arrays e strings
 |x| S/  | Separar uma string por whitespace => Array                              |
 |x| N/  | Separar uma string por newlines => Array                                |
 
-# Blocos
+## Blocos
 
+| done | ops         | example                                  |
+| ---  | ---         | ---                                      |
 |x| {} | Criar um bloco                                                                             |
 |x| ~  | Executar bloco                                                                             |
 |x| %  | Aplicar o bloco a um array/string                                                          |
