@@ -28,10 +28,6 @@ async fn run(req: HttpRequest, mut s: Query<Program>) -> impl Responder {
     }
 }
 
-#[get("/stylesheet.css")]
-async fn style() -> actix_web::Result<NamedFile> {
-    Ok(NamedFile::open("static/stylesheet.css")?)
-}
 
 #[get("/favicon.ico")]
 async fn favicon() -> actix_web::Result<NamedFile> {
@@ -48,7 +44,6 @@ async fn main() -> io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .service(run)
-            .service(style)
             .service(favicon)
             .service(home)
     })
