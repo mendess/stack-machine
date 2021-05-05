@@ -8,11 +8,11 @@ mod util;
 pub use error::Error;
 pub use stack::Value;
 use std::io::{self, BufRead, BufReader};
-use util::StrExt;
+use util::str_ext::StrExt;
 
 #[derive(Default)]
 pub struct Repl {
-    stack: stack::Stack,
+    stack: stack::Stack<'static>,
 }
 
 impl Repl {
@@ -21,7 +21,7 @@ impl Repl {
     }
 
     pub fn next_line(&mut self, s: &str) {
-        if let Err(e) = ops::execute(s.split_tokens(), &mut self.stack) {
+        if let Err(e) = ops::parse_and_execute(s.split_tokens(), &mut self.stack) {
             eprintln!("{:?}", e);
         }
     }
@@ -35,8 +35,8 @@ pub fn run(s: &str) -> Result<Vec<Value>, error::Error> {
     run_with_input(s, BufReader::new(io::stdin()))
 }
 
-pub fn run_with_input<I: BufRead + 'static>(s: &str, i: I) -> Result<Vec<Value>, error::Error> {
+pub fn run_with_input<'i, I: BufRead + 'i>(s: &str, i: I) -> Result<Vec<Value>, error::Error> {
     let mut stack = stack::Stack::with_input(i);
-    ops::execute(s.split_tokens(), &mut stack)?;
+    ops::parse_and_execute(s.split_tokens(), &mut stack)?;
     Ok(stack.into_vec())
 }

@@ -24,8 +24,8 @@
 |x| !              | Não                                   |
 |x| e&             | E  (com shortcut)                     |
 |x| e&#x7c         | Ou (com shortcut)                     |
-| | e<             | Coloca o menor dos 2 valores na stack |
-| | e>             | Coloca o maior dos 2 valores na stack |
+|x| e<             | Coloca o menor dos 2 valores na stack |
+|x| e>             | Coloca o maior dos 2 valores na stack |
 |x| ?              | If-Then-Else                          |
 
 # Variáveis
@@ -47,7 +47,7 @@
 Input/Output
 
 |x| l | Ler linha              |
-| | t | Ler todas as linhas    |
+|x| t | Ler todas as linhas    |
 |x| p | Imprimir topo da stack |
 
 Conversões
@@ -59,31 +59,29 @@ Conversões
 
 Arrays e strings
 
-|x| ""  | Criar uma string                                 |
-|x| []  | Criar um array                                   |
-|x| ~   | Colocar na stack todos os elementos do array     |
-|x| +   | Concatenar strings ou arrays                     |
-|x|     | (ou array/string com elemento)                   |
-|x| *   | Concatenar várias vezes strings ou arrays        |
-|x| ,   | Tamanho ou range                                 |
-| | =   | Ir buscar um valor por índice                    |
-| | < > | Ir buscar X elems/carat do início ou fim         |
-| | ( ) | Remover 1º ou últ. elt. e colocar na stack       |
-| |     | após o array/string                              |
-| | #   | Procurar substring na string e devolver o índice |
-| |     | Ou -1 se não encontrar                           |
-| | t   | Ler todo o input => String                       |
-| | /   | Separar string por substring => Array            |
-| | S/  | Separar uma string por whitespace => Array       |
-| | N/  | Separar uma string por newlines => Array         |
+|x| ""  | Criar uma string                                                        |
+|x| []  | Criar um array                                                          |
+|x| ~   | Colocar na stack todos os elementos do array                            |
+|x| +   | Concatenar strings ou arrays                                            |
+|x|     | (ou array/string com elemento)                                          |
+|x| *   | Concatenar várias vezes strings ou arrays                               |
+|x| ,   | Tamanho ou range                                                        |
+|x| =   | Ir buscar um valor por índice                                           |
+|x| < > | Ir buscar X elems/carat do início ou fim                                |
+|x| ( ) | Remover 1º ou últ. elt. e colocar na stack após o array/string          |
+|x| #   | Procurar substring na string e devolver o índice ou -1 se não encontrar |
+|x| t   | Ler todo o input => String                                              |
+|x| /   | Separar string por substring => Array                                   |
+|x| S/  | Separar uma string por whitespace => Array                              |
+|x| N/  | Separar uma string por newlines => Array                                |
 
-Blocos
+# Blocos
 
-| | {} | Criar um bloco                                                                             |
-| | ~  | Executar bloco                                                                             |
-| | %  | Aplicar o bloco a um array/string                                                          |
-| | *  | Fold sobre um array usando o bloco                                                         |
-| | ,  | Filtrar um array/string utilizando um bloco                                                |
+|x| {} | Criar um bloco                                                                             |
+|x| ~  | Executar bloco                                                                             |
+|x| %  | Aplicar o bloco a um array/string                                                          |
+|x| *  | Fold sobre um array usando o bloco                                                         |
+|x| ,  | Filtrar um array/string utilizando um bloco                                                |
 | | $  | Ordenar usando o bloco                                                                     |
 | | w  | Executa o bloco enquanto ele deixar um truthy no topo da stack; Remove da stack a condição |
 

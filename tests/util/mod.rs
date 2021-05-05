@@ -61,7 +61,7 @@ macro_rules! make_test {
                 stringify!($($exp),*)
             );
             $crate::assert_that!(
-                stack_machine::run($input).expect(&msg),
+                ::stack_machine::run($input).expect(&msg),
                 vec![$(::stack_machine::Value::from($exp)),*],
                 "{}",
                 msg

@@ -1,5 +1,6 @@
 pub mod value;
 
+use crate::error::runtime::*;
 use std::{
     fmt,
     io::{self, BufRead /*Write*/, BufReader},
@@ -8,38 +9,40 @@ use std::{
 };
 pub use value::Value;
 
-pub struct Stack {
-    io_input: Box<dyn BufRead>,
+pub struct Stack<'i> {
+    io_input: Box<dyn BufRead + 'i>,
     // io_output: Box<dyn Write>,
     variables: [Value; (b'Z' - b'A') as usize + 1],
     s: Vec<Value>,
 }
 
-impl ops::Index<char> for Stack {
+impl ops::Index<char> for Stack<'_> {
     type Output = Value;
     fn index(&self, name: char) -> &Self::Output {
         &self.variables[name as usize - b'A' as usize]
     }
 }
 
-impl ops::IndexMut<char> for Stack {
+impl ops::IndexMut<char> for Stack<'_> {
     fn index_mut(&mut self, name: char) -> &mut Self::Output {
         &mut self.variables[name as usize - b'A' as usize]
     }
 }
 
-impl Default for Stack {
+impl Default for Stack<'static> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Stack {
+impl Stack<'static> {
     pub fn new() -> Self {
         Self::with_input(BufReader::new(io::stdin()))
     }
+}
 
-    pub fn with_input<I: BufRead + 'static>(i: I) -> Self {
+impl<'i> Stack<'i> {
+    pub fn with_input<I: BufRead + 'i>(i: I) -> Self {
         let variables = Default::default();
         let mut s = Self {
             io_input: Box::new(i),
@@ -65,12 +68,12 @@ impl Stack {
         self.s.push(v)
     }
 
-    pub fn pop(&mut self) -> Option<Value> {
-        self.s.pop()
+    pub fn pop(&mut self) -> RuntimeResult<Value> {
+        self.s.pop().ok_or(RuntimeError::StackEmpty)
     }
 
-    pub fn top(&self) -> Option<&Value> {
-        self.s.last()
+    pub fn top(&self) -> RuntimeResult<&Value> {
+        self.s.last().ok_or(RuntimeError::StackEmpty)
     }
 
     // pub fn top_mut(&mut self) -> Option<&mut Value> {
@@ -99,8 +102,16 @@ impl Stack {
         self.s.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.s.is_empty()
+    }
+
     pub fn into_vec(self) -> Vec<Value> {
         self.s
+    }
+
+    pub fn take(&mut self) -> Vec<Value> {
+        std::mem::take(&mut self.s)
     }
 
     pub fn as_slice(&self) -> &[Value] {
@@ -114,9 +125,17 @@ impl Stack {
     // pub fn output(&mut self) -> &mut dyn Write {
     //     &mut *self.io_output
     // }
+
+    pub fn take_as_value(&mut self) -> RuntimeResult<Value> {
+        match self.s.len() {
+            0 => Err(RuntimeError::StackEmpty),
+            1 => Ok(self.s.pop().unwrap()),
+            _ => Ok(self.take().into()),
+        }
+    }
 }
 
-impl fmt::Display for Stack {
+impl fmt::Display for Stack<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[")?;
         for v in &self.s[..(self.len() - 1)] {

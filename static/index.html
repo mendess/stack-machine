@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Stack Machine</title>
+  </head>
+  <body>
+    <h1>Stack Machine</h1>
+    <form action="/run" method="get" target="output" id="run_form">
+      <label>Program</label><br>
+      <input type="text" name="s"><br>
+      <label for="input_text">Input</label><br>
+      <input type="submit" value="Run">
+    </form>
+    <iframe name="output" src="empty"></iframe>
+    <textarea id="input_text" name="input" form="run_form"></textarea><br>
+    <p>Missing features</p>
+    <ul>
+      <li>$ sorting</li>
+      <li>expressions inside arrays (because I have to change a few things and I don't want to)</li>
+    </ul>
+  </body>
+</html>

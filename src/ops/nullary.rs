@@ -3,32 +3,59 @@ use crate::{
     error::runtime::*,
     stack::{value::Value, Stack},
 };
-use std::str::FromStr;
+use std::{
+    fmt::{self, Debug, Display},
+    str::FromStr,
+};
 
-pub struct Nullary(fn(stack: &mut Stack) -> RuntimeResult<()>);
+pub struct Nullary(fn(stack: &mut Stack) -> RuntimeResult<()>, String);
 
 impl FromStr for Nullary {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "t" => Ok(Self(|s| {
-                let mut buf = String::new();
-                s.input().read_to_string(&mut buf)?;
-                Ok(s.push(buf.into()))
-            })),
-            "l" => Ok(Self(|s| {
-                let mut buf = String::new();
-                s.input().read_line(&mut buf)?;
-                if buf.ends_with('\n') { buf.pop(); }
-                Ok(s.push(Value::Str(buf)))
-            })),
+            "t" => Ok(Self(
+                |s| {
+                    let mut buf = String::new();
+                    s.input().read_to_string(&mut buf)?;
+                    Ok(s.push(buf.into()))
+                },
+                s.into(),
+            )),
+            "l" => Ok(Self(
+                |s| {
+                    let mut buf = String::new();
+                    s.input().read_line(&mut buf)?;
+                    if buf.ends_with('\n') {
+                        buf.pop();
+                    }
+                    Ok(s.push(Value::Str(buf)))
+                },
+                s.into(),
+            )),
             _ => Err(()),
         }
     }
 }
 
 impl Operator for Nullary {
-    fn run(&mut self, stack: &mut Stack) -> RuntimeResult<()> {
+    fn run(&self, stack: &mut Stack) -> RuntimeResult<()> {
         self.0(stack)
+    }
+
+    fn as_str(&self) -> &str {
+        &self.1
+    }
+}
+
+impl Display for Nullary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.1)
+    }
+}
+
+impl Debug for Nullary {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.1)
     }
 }

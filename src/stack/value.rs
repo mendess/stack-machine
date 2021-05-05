@@ -1,42 +1,58 @@
-use crate::{error::both::*, util::StrExt};
+use crate::{error::both::*, ops::Operator, util::str_ext::StrExt};
 use std::{
+    cmp,
     convert::TryInto,
     fmt::{self, Write},
     ops,
+    rc::Rc,
     str::FromStr,
 };
 
-#[macro_export]
-macro_rules! type_error {
-    (convert: $a:expr, $t:ty) => {
-        return Err($crate::error::RuntimeError::InvalidCast($a, stringify!($t)))
-    };
-    (op: $a:expr => [$op:ident]) => {
-        return Err($crate::error::RuntimeError::InvalidOperation(
-            vec![$a],
-            stringify!($op),
-        ))
-    };
-    (op: $a:expr, $b:expr => [$op:ident]) => {
-        return Err($crate::error::RuntimeError::InvalidOperation(
-            vec![$b, $a],
-            stringify!($op),
-        ))
-    };
-}
-
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug)]
 pub enum Value {
     Char(char),
     Integer(i64),
     Float(f64),
     Str(String), // TODO: try to make it a cow
     Array(Vec<Value>),
+    Block(Vec<Rc<dyn Operator>>),
 }
 
 impl Default for Value {
     fn default() -> Self {
         Self::Integer(0)
+    }
+}
+
+impl cmp::PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Char(c0), Value::Char(c1)) => c0 == c1,
+            (Value::Integer(i0), Value::Integer(i1)) => i0 == i1,
+            (Value::Float(f0), Value::Float(f1)) => f0 == f1,
+            (Value::Str(s0), Value::Str(s1)) => s0 == s1,
+            (Value::Array(a0), Value::Array(a1)) => a0 == a1,
+            (Value::Block(b0), Value::Block(b1)) => b0
+                .iter()
+                .map(|o| o.as_str())
+                .zip(b1.iter().map(|o| o.as_str()))
+                .all(|(b0, b1)| b0 == b1),
+            _ => false,
+        }
+    }
+}
+
+impl cmp::PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        match (self, other) {
+            (Value::Char(c0), Value::Char(c1)) => c0.partial_cmp(&c1),
+            (Value::Integer(i0), Value::Integer(i1)) => i0.partial_cmp(&i1),
+            (Value::Float(f0), Value::Float(f1)) => f0.partial_cmp(&f1),
+            (Value::Str(s0), Value::Str(s1)) => s0.partial_cmp(&s1),
+            (Value::Array(a0), Value::Array(a1)) => a0.partial_cmp(&a1),
+            (Value::Block(_), Value::Block(_)) => None,
+            _ => None,
+        }
     }
 }
 
@@ -130,11 +146,18 @@ impl Value {
         match (&self, &other) {
             (Self::Integer(i1), Self::Integer(i2)) => match (*i2).try_into() {
                 Ok(i2) => Ok(Self::Integer(i1.pow(i2))),
-                Err(_) if *i2 < 0 => type_error!(op: self, other => [pow_with_negative_number]),
-                Err(_) if *i2 > u32::MAX as i64 => type_error!(op: self, other => [pow_too_large]),
+                Err(_) if *i2 < 0 => {
+                    crate::rt_error!(op: self, other => [pow_with_negative_number])
+                }
+                Err(_) if *i2 > u32::MAX as i64 => {
+                    crate::rt_error!(op: self, other => [pow_too_large])
+                }
                 Err(_) => unreachable!(),
             },
-            _ => type_error!(op: self, other => [pow]),
+            (Self::Str(haystack), Self::Str(needle)) => {
+                Ok(haystack.find(needle).map(|i| i as i64).unwrap_or(-1).into())
+            }
+            _ => crate::rt_error!(op: self, other => [pow]),
         }
     }
 
@@ -143,12 +166,12 @@ impl Value {
             Value::Char(c) => c,
             Value::Integer(i) => match <i64 as TryInto<u32>>::try_into(i).map(TryInto::try_into) {
                 Ok(Ok(c)) => c,
-                _ => type_error!(convert: self, char),
+                _ => crate::rt_error!(convert: self, char),
             },
             Value::Float(f) if (0.0..i8::MAX as f64).contains(&f) && f.fract() == 0.0 => {
                 f as u8 as _
             }
-            _ => type_error!(convert: self, char),
+            _ => crate::rt_error!(convert: self, char),
         }))
     }
 
@@ -156,11 +179,11 @@ impl Value {
         Ok(Value::Float(match self {
             Value::Char(c) => match c.is_ascii().then(|| c as u8) {
                 Some(c) => c as _,
-                None => type_error!(convert: self, f64),
+                None => crate::rt_error!(convert: self, f64),
             },
             Value::Integer(i) => i as f64,
             Value::Float(f) => f,
-            _ => type_error!(convert: self, f64),
+            _ => crate::rt_error!(convert: self, f64),
         }))
     }
 
@@ -174,10 +197,10 @@ impl Value {
                 if let Ok(i) = s.parse() {
                     i
                 } else {
-                    type_error!(convert: self, i64)
+                    crate::rt_error!(convert: self, i64)
                 }
             }
-            _ => type_error!(convert: self, i64),
+            _ => crate::rt_error!(convert: self, i64),
         }))
     }
 
@@ -192,6 +215,7 @@ impl Value {
                 let _ = write!(s, "{:?}", a);
                 s
             }
+            Value::Block(_) => crate::rt_error!(convert: self, String),
         }))
     }
 }
@@ -214,7 +238,7 @@ macro_rules! impl_math {
                     (Self::Float(f1), Self::Integer(i1)) => Self::Float(f1.$name(i1 as f64)),
                     (Self::Float(f1), Self::Float(f2)) => Self::Float(f1.$name(f2)),
                     $(($left, $right) => $do,)*
-                    (a, b) => type_error!(op: a, b => [$name]),
+                    (a, b) => crate::rt_error!(op: a, b => [$name]),
                 };
                 Ok(v)
             }
@@ -252,7 +276,9 @@ impl_math!(ops::Mul, mul {
     }),
     (Self::Str(s), Self::Integer(i)) => Self::Str(s.repeat(i as usize)),
 });
-impl_math!(ops::Div, div);
+impl_math!(ops::Div, div {
+    (Self::Str(s), Self::Str(delim)) => Self::Array(s.split(&delim).map(Value::from).collect()),
+});
 impl_math!(ops::Rem, rem);
 
 macro_rules! impl_bit {
@@ -270,7 +296,7 @@ macro_rules! impl_bit {
                 let v = match (self, other) {
                     (Self::Integer(i1), Self::Integer(i2)) => Self::Integer(i1.$name(i2)),
                     $($pattern => $do,)*
-                    (a, b) => type_error!(op: a, b => [$name]),
+                    (a, b) => crate::rt_error!(op: a, b => [$name]),
                 };
                 Ok(v)
             }
@@ -282,17 +308,6 @@ impl_bit!(ops::BitAnd, bitand);
 impl_bit!(ops::BitOr, bitor);
 impl_bit!(ops::BitXor, bitxor);
 
-impl ops::Not for Value {
-    type Output = RuntimeResult<Self>;
-
-    fn not(self) -> Self::Output {
-        match self {
-            Self::Integer(i) => Ok(Self::Integer(!i)),
-            _ => type_error!(op: self => [not]),
-        }
-    }
-}
-
 impl FromStr for Value {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -302,6 +317,7 @@ impl FromStr for Value {
             .or_else(|| s.parse().map(Value::Float).ok())
             .or_else(|| Value::parse_array(s))
             .or_else(|| Value::parse_string(s))
+            .or_else(|| Value::parse_block(s))
             .ok_or(())
     }
 }
@@ -328,6 +344,20 @@ impl Value {
             None
         }
     }
+
+    fn parse_block(s: &str) -> Option<Self> {
+        if s.starts_with('{') && s.ends_with('}') {
+            Some(Value::Block(
+                s.trim_matches(&['{', '}'][..])
+                    .split_tokens()
+                    .map(|t| t.parse::<Box<dyn Operator>>().map(Rc::from))
+                    .map(Result::ok)
+                    .collect::<Option<_>>()?,
+            ))
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for Value {
@@ -344,6 +374,16 @@ impl fmt::Display for Value {
                 }
                 if let Some(x) = a.last() {
                     write!(f, "{}", x)?;
+                }
+                write!(f, "])")
+            }
+            Value::Block(b) => {
+                write!(f, "b([")?;
+                for x in &b[..(b.len() - 1)] {
+                    write!(f, "{}, ", x)?;
+                }
+                if let Some(b) = b.last() {
+                    write!(f, "{}", b)?;
                 }
                 write!(f, "])")
             }

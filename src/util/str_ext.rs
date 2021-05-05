@@ -42,6 +42,21 @@ impl<'s> Iterator for Iter<'s> {
                     .map(|i| i + 2)
                     .unwrap_or(self.s.len())
             }
+            '{' => {
+                let mut i = 1;
+                self.s[1..]
+                    .find(|c: char| {
+                        match c {
+                            '}' if i == 1 => return true,
+                            '}' => i -= 1,
+                            '{' => i += 1,
+                            _ => (),
+                        }
+                        false
+                    })
+                    .map(|i| i + 2)
+                    .unwrap_or(self.s.len())
+            }
             _ => self.s.find(char::is_whitespace).unwrap_or(self.s.len()),
         };
         let r = &self.s[..end];
