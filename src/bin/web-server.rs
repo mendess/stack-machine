@@ -11,6 +11,12 @@ struct Program {
     input: String,
 }
 
+macro_rules! iframe {
+    ($($arg:tt)*) => {
+        format!("<p style=\"color: rgba(198,199,196,255)\">{}</p>", ::std::format_args!($($arg)*))
+    }
+}
+
 #[get("/run")]
 async fn run(req: HttpRequest, mut s: Query<Program>) -> impl Responder {
     s.input.retain(|c| c != '\r');
@@ -22,12 +28,9 @@ async fn run(req: HttpRequest, mut s: Query<Program>) -> impl Responder {
         Utc::now(),
         s
     );
-    fn wrap(s: String) -> String {
-        format!("<p style=\"color: rgba(198,199,196,255)\">{}</p>", s)
-    }
     match run_with_input(&s.s, Cursor::new(&s.input)) {
-        Ok(v) => HttpResponse::Ok().body(wrap(format!("[{}]", v.into_iter().format(",")))),
-        Err(e) => HttpResponse::BadRequest().body(wrap(format!("{:?}", e))),
+        Ok(v) => HttpResponse::Ok().body(iframe!("[{}]", v.into_iter().format(","))),
+        Err(e) => HttpResponse::BadRequest().body(iframe!("{:?}", e)),
     }
 }
 
