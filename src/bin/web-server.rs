@@ -12,7 +12,8 @@ struct Program {
 }
 
 #[get("/run")]
-async fn run(req: HttpRequest, s: Query<Program>) -> impl Responder {
+async fn run(req: HttpRequest, mut s: Query<Program>) -> impl Responder {
+    s.input.retain(|c| c != '\r');
     eprintln!(
         "{}@[{:?}] {:?}",
         req.peer_addr()
@@ -27,6 +28,16 @@ async fn run(req: HttpRequest, s: Query<Program>) -> impl Responder {
     }
 }
 
+#[get("/stylesheet.css")]
+async fn style() -> actix_web::Result<NamedFile> {
+    Ok(NamedFile::open("static/stylesheet.css")?)
+}
+
+#[get("/favicon.ico")]
+async fn favicon() -> actix_web::Result<NamedFile> {
+    Ok(NamedFile::open("static/favicon.ico")?)
+}
+
 #[get("/")]
 async fn home() -> actix_web::Result<NamedFile> {
     Ok(NamedFile::open("static/index.html")?)
@@ -34,8 +45,14 @@ async fn home() -> actix_web::Result<NamedFile> {
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
-    HttpServer::new(|| App::new().service(run).service(home))
-        .bind("0.0.0.0:2021")?
-        .run()
-        .await
+    HttpServer::new(|| {
+        App::new()
+            .service(run)
+            .service(style)
+            .service(favicon)
+            .service(home)
+    })
+    .bind("0.0.0.0:2021")?
+    .run()
+    .await
 }
