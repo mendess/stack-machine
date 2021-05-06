@@ -249,6 +249,8 @@ macro_rules! impl_math {
 impl_math!(ops::Add, add {
     (Self::Char(c), Self::Integer(i)) => Self::Char((c as u8 + i as u8) as char),
     (Self::Str(s1), Self::Str(s2)) => Self::Str(s1 + &s2),
+    (Self::Str(mut s), Self::Char(c)) => Self::Str({ s.push(c); s }),
+    (Self::Char(c), Self::Str(mut s)) => Self::Str({ s.push(c); s }),
     (Self::Array(mut a1), Self::Array(a2)) => {
         a1.extend(a2);
         Self::Array(a1)
