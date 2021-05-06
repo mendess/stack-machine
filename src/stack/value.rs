@@ -1,4 +1,5 @@
 use crate::{error::both::*, ops::Operator, util::str_ext::StrExt};
+use itertools::Itertools;
 use std::{
     cmp,
     convert::TryInto,
@@ -383,26 +384,8 @@ impl fmt::Display for Value {
             Value::Integer(i) => write!(f, "i({})", i),
             Value::Float(d) => write!(f, "f({})", d),
             Value::Str(s) => write!(f, "s({})", s),
-            Value::Array(a) => {
-                write!(f, "a([")?;
-                for x in &a[..(a.len() - 1)] {
-                    write!(f, "{}, ", x)?;
-                }
-                if let Some(x) = a.last() {
-                    write!(f, "{}", x)?;
-                }
-                write!(f, "])")
-            }
-            Value::Block(b) => {
-                write!(f, "b([")?;
-                for x in &b[..(b.len() - 1)] {
-                    write!(f, "{}, ", x)?;
-                }
-                if let Some(b) = b.last() {
-                    write!(f, "{}", b)?;
-                }
-                write!(f, "])")
-            }
+            Value::Array(a) => write!(f, "a([{}])", a.iter().format(",")),
+            Value::Block(b) => write!(f, "b([{}])", b.iter().format(",")),
         }
     }
 }
