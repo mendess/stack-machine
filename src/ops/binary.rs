@@ -113,9 +113,9 @@ impl FromStr for BinaryOp {
             },
             "=" => |a, b, _| match (&a, &b) {
                 (Value::Array(arr), Value::Integer(i)) => {
-                    match <i64 as TryInto<usize>>::try_into(*i) {
-                        Ok(i) => Ok(arr[i].clone()),
-                        Err(_) => crate::rt_error!(op: a, b => [index]),
+                    match <i64 as TryInto<usize>>::try_into(*i).map(|i| arr.get(i)) {
+                        Ok(Some(v)) => Ok(v.clone()),
+                        _ => crate::rt_error!(op: a, b => [index]),
                     }
                 }
                 (a, b) => Ok((a.partial_cmp(&b) == Some(Ordering::Equal)).into()),
