@@ -56,6 +56,20 @@ impl cmp::PartialOrd for Value {
     }
 }
 
+impl Eq for Value {}
+
+impl cmp::Ord for Value {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        if self < other {
+            cmp::Ordering::Less
+        } else if self > other {
+            cmp::Ordering::Greater
+        } else {
+            cmp::Ordering::Equal
+        }
+    }
+}
+
 impl From<&Value> for bool {
     fn from(v: &Value) -> Self {
         match v {

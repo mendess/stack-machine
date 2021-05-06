@@ -1,11 +1,12 @@
 use super::Operator;
 use crate::{
     error::runtime::*,
+    ops::{calculate, execute},
     stack::{value::Value, Stack},
-    ops::execute,
 };
 use std::{
     fmt::{self, Debug, Display},
+    mem::take,
     str::{from_utf8, FromStr},
 };
 
@@ -85,15 +86,31 @@ impl FromStr for StackOp {
             [b':', v @ b'A'..=b'Z'] => Ok(Enum::VarAccess(*v as _, |s, v| {
                 Ok(s.top().map(Clone::clone).map(|x| s[v] = x)?)
             })),
-            b"$" => Ok(Enum::Simple(|s| match s.pop()? {
-                Value::Integer(i) if i >= 0 => {
+            b"$" => Ok(Enum::Simple(|s| {
+                let top = s.pop()?;
+                if let Value::Integer(i) = top {
+                    if i < 0 {
+                        return Err(RuntimeError::OutOfBounds(s.len(), i));
+                    }
                     if let Some(v) = s.get_from_end(i as usize).cloned() {
                         Ok(s.push(v))
                     } else {
                         Err(RuntimeError::OutOfBounds(s.len(), i))
                     }
+                } else if let (Value::Array(mut a), Value::Block(b)) = (s.pop()?, &top) {
+                    {
+                        let mut temp_stack = Stack::with_input(s.input());
+                        let mut keys = take(&mut a)
+                            .into_iter()
+                            .map(|v| calculate(v.clone(), b, &mut temp_stack).map(|key| (v, key)))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        keys.sort_by(|(_, key0), (_, key1)| key0.cmp(key1));
+                        a.extend(keys.into_iter().map(|(v, _)| v));
+                    }
+                    Ok(s.push(a.into()))
+                } else {
+                    crate::rt_error!(op: top => [index_sort])
                 }
-                v => crate::rt_error!(op: v => [index]),
             })),
             // n$
             [rest @ .., b'$'] => {
