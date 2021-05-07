@@ -118,6 +118,12 @@ impl FromStr for BinaryOp {
                         _ => crate::rt_error!(op: a, b => [index]),
                     }
                 }
+                (Value::Str(s), Value::Integer(i)) => {
+                    match <i64 as TryInto<usize>>::try_into(*i).map(|i| s.chars().nth(i)) {
+                        Ok(Some(v)) => Ok(v.into()),
+                        _ => crate::rt_error!(op: a, b => [index]),
+                    }
+                }
                 (a, b) => Ok((a.partial_cmp(&b) == Some(Ordering::Equal)).into()),
             },
             "#" => |a: Value, b, _| a.pow(b),
