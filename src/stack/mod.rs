@@ -133,6 +133,14 @@ impl<'i> Stack<'i> {
             _ => Ok(self.take().into()),
         }
     }
+
+    pub fn push_var(&mut self, var: char) {
+        self.s.push(self[var].clone());
+    }
+
+    pub fn pop_var(&mut self, var: char) -> RuntimeResult<()> {
+        Ok(self[var] = self.top().map(Clone::clone)?)
+    }
 }
 
 impl fmt::Display for Stack<'_> {

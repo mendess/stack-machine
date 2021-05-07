@@ -13,10 +13,10 @@ use std::{
 pub struct StackOp(Enum, String);
 
 enum Enum {
-    Simple(fn(&mut Stack) -> RuntimeResult<()>),
+    Simple(fn(&mut Stack<'_>) -> RuntimeResult<()>),
     Push(Value),
-    Nth(usize, fn(&mut Stack, usize) -> RuntimeResult<()>),
-    VarAccess(char, fn(&mut Stack, char) -> RuntimeResult<()>),
+    Nth(usize, fn(&mut Stack<'_>, usize) -> RuntimeResult<()>),
+    VarAccess(char, fn(&mut Stack<'_>, char) -> RuntimeResult<()>),
 }
 
 impl FromStr for StackOp {
@@ -82,10 +82,8 @@ impl FromStr for StackOp {
                     crate::rt_error!(op: v => [while])
                 }
             })),
-            [v @ b'A'..=b'Z'] => Ok(Enum::VarAccess(*v as _, |s, v| Ok(s.push(s[v].clone())))),
-            [b':', v @ b'A'..=b'Z'] => Ok(Enum::VarAccess(*v as _, |s, v| {
-                Ok(s.top().map(Clone::clone).map(|x| s[v] = x)?)
-            })),
+            [v @ b'A'..=b'Z'] => Ok(Enum::VarAccess(*v as _, |s, v| Ok(s.push_var(v)))),
+            [b':', v @ b'A'..=b'Z'] => Ok(Enum::VarAccess(*v as _, |s, v| s.pop_var(v))),
             b"$" => Ok(Enum::Simple(|s| {
                 let top = s.pop()?;
                 if let Value::Integer(i) = top {
