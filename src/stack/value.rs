@@ -172,7 +172,12 @@ impl Value {
             (Self::Str(haystack), Self::Str(needle)) => {
                 Ok(haystack.find(needle).map(|i| i as i64).unwrap_or(-1).into())
             }
-            _ => crate::rt_error!(op: self, other => [pow]),
+            (Self::Str(haystack), Self::Char(needle)) => Ok(haystack
+                .find(*needle)
+                .map(|i| i as i64)
+                .unwrap_or(-1)
+                .into()),
+            _ => crate::rt_error!(op: self, other => [pow_substr]),
         }
     }
 
