@@ -2,8 +2,12 @@ use super::Operator;
 use crate::{
     error::runtime::*,
     ops::{calculate, execute},
-    stack::{value::Value, Stack},
+    stack::{
+        value::{ExprVec, ProtoValue},
+        Stack, Value,
+    },
 };
+use either::{Left, Right};
 use std::{
     fmt::{self, Debug, Display},
     mem::take,
@@ -14,7 +18,7 @@ pub struct StackOp(Enum, String);
 
 enum Enum {
     Simple(fn(&mut Stack<'_>) -> RuntimeResult<()>),
-    Push(Value),
+    Push(ProtoValue),
     Nth(usize, fn(&mut Stack<'_>, usize) -> RuntimeResult<()>),
     VarAccess(char, fn(&mut Stack<'_>, char) -> RuntimeResult<()>),
 }
@@ -129,21 +133,40 @@ impl FromStr for StackOp {
     }
 }
 
+fn generate_protovalue(stack: &mut Stack, v: ProtoValue) -> RuntimeResult<Value> {
+    match v.0 {
+        Left(v) => Ok(v),
+        Right(ExprVec(v)) => Ok(Value::Array(
+            v.into_iter()
+                .map(|op| {
+                    execute(std::iter::once(op), stack)?;
+                    stack.pop()
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+    }
+}
+
 impl Operator for StackOp {
     fn run(&self, stack: &mut Stack) -> Result<(), RuntimeError> {
         match &self.0 {
             Enum::Simple(f) => f(stack),
-            Enum::Push(v) => Ok(stack.push(v.clone())),
+            Enum::Push(v) => {
+                let v = generate_protovalue(stack, v.clone())?;
+                Ok(stack.push(v))
+            }
             Enum::VarAccess(v, f) => f(stack, *v),
             Enum::Nth(n, f) => f(stack, *n),
         }
     }
 
     fn run_mut(&mut self, stack: &mut Stack) -> Result<(), RuntimeError> {
-        use std::mem::replace;
         match &mut self.0 {
             Enum::Simple(f) => f(stack),
-            Enum::Push(v) => Ok(stack.push(replace(v, Default::default()))),
+            Enum::Push(v) => {
+                let v = generate_protovalue(stack, take(v))?;
+                Ok(stack.push(v))
+            }
             Enum::VarAccess(v, f) => f(stack, *v),
             Enum::Nth(n, f) => f(stack, *n),
         }

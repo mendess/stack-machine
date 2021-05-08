@@ -207,7 +207,6 @@ impl Value {
         }))
     }
 
-    // self: Value
     pub fn to_int(self) -> RuntimeResult<Self> {
         Ok(Value::Integer(match self {
             Value::Char(c) => c as i64,
@@ -332,28 +331,41 @@ impl_bit!(ops::BitAnd, bitand);
 impl_bit!(ops::BitOr, bitor);
 impl_bit!(ops::BitXor, bitxor);
 
-impl FromStr for Value {
+use either::{Either, Left, Right};
+
+#[derive(Debug, Default, Clone)]
+pub struct ExprVec(pub Vec<Rc<dyn Operator>>);
+#[derive(Debug, Clone)]
+pub struct ProtoValue(pub Either<Value, ExprVec>);
+
+impl Default for ProtoValue {
+    fn default() -> Self {
+        Self(Left(Value::default()))
+    }
+}
+
+impl FromStr for ProtoValue {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse()
-            .ok()
-            .map(Value::Integer)
-            .or_else(|| s.parse().map(Value::Float).ok())
-            .or_else(|| Value::parse_array(s))
-            .or_else(|| Value::parse_string(s))
-            .or_else(|| Value::parse_block(s))
+        None.or_else(|| s.parse().map(Value::Integer).map(Left).ok())
+            .or_else(|| s.parse().map(Value::Float).map(Left).ok())
+            .or_else(|| Value::parse_array(s).map(Right))
+            .or_else(|| Value::parse_string(s).map(Left))
+            .or_else(|| Value::parse_block(s).map(Left))
             .ok_or(())
+            .map(Self)
     }
 }
 
 impl Value {
-    fn parse_array(s: &str) -> Option<Self> {
+    fn parse_array(s: &str) -> Option<ExprVec> {
         if s.starts_with('[') && s.ends_with(']') {
-            Some(Value::Array(
+            Some(ExprVec(
                 s.trim_matches(&['[', ']'][..])
                     .split_tokens()
-                    .map(str::parse)
+                    .map(str::parse::<Box<dyn Operator>>)
                     .map(Result::ok)
+                    .map(|x| x.map(Rc::from))
                     .collect::<Option<_>>()?,
             ))
         } else {
