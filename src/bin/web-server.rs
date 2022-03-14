@@ -1,5 +1,9 @@
 use actix_files::NamedFile;
-use actix_web::{get, web::Query, App, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{
+    get,
+    web::{self, Query},
+    App, HttpRequest, HttpResponse, HttpServer, Responder,
+};
 use chrono::Utc;
 use itertools::Itertools;
 use stack_machine::run_with_input;
@@ -7,8 +11,15 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{self, Cursor},
-    net::{IpAddr, Ipv4Addr},
+    net::IpAddr,
 };
+use tokio::sync::mpsc::{self, channel};
+
+#[derive(Debug)]
+struct Request {
+    ip: IpAddr,
+    program: Program,
+}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct User {
@@ -41,7 +52,7 @@ fn store(ip: IpAddr) -> io::Result<String> {
         .entry(ip)
         .or_default()
         .as_ref()
-        .map(|x| x.clone())
+        .cloned()
         .unwrap_or_else(|| format!("{}", ip));
     let mut wrt = csv::WriterBuilder::new()
         .delimiter(b':')
@@ -52,7 +63,7 @@ fn store(ip: IpAddr) -> io::Result<String> {
     Ok(r)
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Clone)]
 struct Program {
     s: String,
     input: String,
@@ -65,26 +76,24 @@ macro_rules! iframe {
 }
 
 #[get("/run")]
-async fn run(req: HttpRequest, mut s: Query<Program>) -> impl Responder {
+async fn run(
+    req: HttpRequest,
+    tx: web::Data<mpsc::Sender<Request>>,
+    mut s: Query<Program>,
+) -> impl Responder {
     s.input.retain(|c| c != '\r');
-    let ip_or_def = |req: &HttpRequest| {
-        format!(
-            "{}",
-            req.peer_addr()
-                .map(|x| x.ip())
-                .unwrap_or_else(|| Ipv4Addr::UNSPECIFIED.into())
-        )
-    };
 
-    let u = match req.peer_addr().map(|x| x.ip()).map(store) {
-        Some(Ok(u)) => u,
-        Some(Err(e)) => {
-            eprintln!("Failed to store ip: {:?}", e);
-            ip_or_def(&req)
+    if let Some(ip) = req.peer_addr().map(|x| x.ip()) {
+        if let Err(e) = tx
+            .send(Request {
+                ip,
+                program: s.0.clone(),
+            })
+            .await
+        {
+            eprintln!("failed to send ip to storing: {e:?}");
         }
-        None => ip_or_def(&req),
-    };
-    eprintln!("{}@[{:?}] {:?}", u, Utc::now(), s);
+    }
 
     match run_with_input(&s.s, Cursor::new(&s.input)) {
         Ok(v) => HttpResponse::Ok().body(iframe!("[{}]", v.into_iter().format(","))),
@@ -104,8 +113,33 @@ async fn home() -> actix_web::Result<NamedFile> {
 
 #[actix_web::main]
 async fn main() -> io::Result<()> {
-    HttpServer::new(|| App::new().service(run).service(favicon).service(home))
-        .bind("0.0.0.0:2021")?
-        .run()
-        .await
+    let (tx, mut rx) = channel::<Request>(200);
+    tokio::spawn(async move {
+        eprintln!("storing task starting up");
+        while let Some(Request { ip, program }) = rx.recv().await {
+            let u = match tokio::task::spawn_blocking(move || store(ip)).await {
+                Ok(Ok(u)) => u,
+                Ok(Err(e)) => {
+                    eprintln!("Failed to store ip: {:?}", e);
+                    ip.to_string()
+                }
+                Err(e) => {
+                    eprintln!("Failed to join store task: {:?}", e);
+                    ip.to_string()
+                }
+            };
+            eprintln!("{}@[{:?}] {:?}", u, Utc::now(), program);
+        }
+        eprintln!("storing task shutting down");
+    });
+    HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(tx.clone()))
+            .service(run)
+            .service(favicon)
+            .service(home)
+    })
+    .bind("0.0.0.0:2021")?
+    .run()
+    .await
 }

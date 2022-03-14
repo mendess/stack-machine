@@ -128,7 +128,7 @@ where
     T: Into<Value>,
 {
     fn from(a: [T; N]) -> Self {
-        Self::Array(std::array::IntoIter::new(a).map(Into::into).collect())
+        Self::Array(a.into_iter().map(Into::into).collect())
     }
 }
 
