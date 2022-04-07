@@ -62,7 +62,7 @@ macro_rules! rt_error {
     };
     (op: $a:expr, $b:expr => [$op:ident]) => {
         return ::std::result::Result::Err($crate::error::RuntimeError::InvalidOperation(
-            ::std::vec![$crate::Value::from($b), $crate::Value::from($a)],
+            ::std::vec![$crate::Value::from($a), $crate::Value::from($b)],
             ::std::stringify!($op),
         ))
     };

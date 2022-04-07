@@ -46,11 +46,11 @@ impl cmp::PartialEq for Value {
 impl cmp::PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         match (self, other) {
-            (Value::Char(c0), Value::Char(c1)) => c0.partial_cmp(&c1),
-            (Value::Integer(i0), Value::Integer(i1)) => i0.partial_cmp(&i1),
-            (Value::Float(f0), Value::Float(f1)) => f0.partial_cmp(&f1),
-            (Value::Str(s0), Value::Str(s1)) => s0.partial_cmp(&s1),
-            (Value::Array(a0), Value::Array(a1)) => a0.partial_cmp(&a1),
+            (Value::Char(c0), Value::Char(c1)) => c0.partial_cmp(c1),
+            (Value::Integer(i0), Value::Integer(i1)) => i0.partial_cmp(i1),
+            (Value::Float(f0), Value::Float(f1)) => f0.partial_cmp(f1),
+            (Value::Str(s0), Value::Str(s1)) => s0.partial_cmp(s1),
+            (Value::Array(a0), Value::Array(a1)) => a0.partial_cmp(a1),
             (Value::Block(_), Value::Block(_)) => None,
             _ => None,
         }
@@ -252,7 +252,12 @@ macro_rules! impl_math {
 
             fn $name(self, other: Self) -> Self::Output {
                 let v = match (self, other) {
-                    (Self::Integer(i1), Self::Integer(i2)) => Self::Integer(i1.$name(i2)),
+                    (Self::Integer(i1), Self::Integer(i2)) => paste::paste! {
+                        match i1.[<checked_ $name>](i2).map(Self::Integer) {
+                            Some(x) => x,
+                            None => crate::rt_error!(op: Self::Integer(i1), Self::Integer(i2) => [$name])
+                        }
+                    },
                     (Self::Integer(i1), Self::Float(f1)) => Self::Float((i1 as f64).$name(f1)),
                     (Self::Float(f1), Self::Integer(i1)) => Self::Float(f1.$name(i1 as f64)),
                     (Self::Float(f1), Self::Float(f2)) => Self::Float(f1.$name(f2)),

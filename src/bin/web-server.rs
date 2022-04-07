@@ -95,9 +95,10 @@ async fn run(
         }
     }
 
-    match run_with_input(&s.s, Cursor::new(&s.input)) {
-        Ok(v) => HttpResponse::Ok().body(iframe!("[{}]", v.into_iter().format(","))),
-        Err(e) => HttpResponse::BadRequest().body(iframe!("{:?}", e)),
+    match std::panic::catch_unwind(|| run_with_input(&s.s, Cursor::new(&s.input))) {
+        Ok(Ok(v)) => HttpResponse::Ok().body(iframe!("[{}]", v.into_iter().format(","))),
+        Ok(Err(e)) => HttpResponse::BadRequest().body(iframe!("{:?}", e)),
+        Err(e) => HttpResponse::InternalServerError().body(iframe!("panicked at '{:?}'", e)),
     }
 }
 
