@@ -352,13 +352,18 @@ impl Default for ProtoValue {
 impl FromStr for ProtoValue {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        None.or_else(|| s.parse().map(Value::Integer).map(Left).ok())
-            .or_else(|| s.parse().map(Value::Float).map(Left).ok())
-            .or_else(|| Value::parse_array(s).map(Right))
-            .or_else(|| Value::parse_string(s).map(Left))
-            .or_else(|| Value::parse_block(s).map(Left))
-            .ok_or(())
-            .map(Self)
+        None.or_else(|| {
+            matches!(s.as_bytes(), [b'a'..=b'z'])
+                .then(|| s.parse().map(Value::Char).map(Left).ok())
+                .flatten()
+        })
+        .or_else(|| s.parse().map(Value::Integer).map(Left).ok())
+        .or_else(|| s.parse().map(Value::Float).map(Left).ok())
+        .or_else(|| Value::parse_array(s).map(Right))
+        .or_else(|| Value::parse_string(s).map(Left))
+        .or_else(|| Value::parse_block(s).map(Left))
+        .ok_or(())
+        .map(Self)
     }
 }
 

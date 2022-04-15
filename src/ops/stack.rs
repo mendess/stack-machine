@@ -56,7 +56,8 @@ impl FromStr for StackOp {
                     }
                     x => x - Value::Integer(1),
                 };
-                Ok(s.push(top?))
+                s.push(top?);
+                Ok(())
             })),
             b")" => Ok(Enum::Simple(|s| {
                 let top = match s.pop()? {
@@ -73,7 +74,8 @@ impl FromStr for StackOp {
                     }
                     x => x + Value::Integer(1),
                 };
-                Ok(s.push(top?))
+                s.push(top?);
+                Ok(())
             })),
             b"w" => Ok(Enum::Simple(|s| {
                 let v = s.pop()?;
@@ -86,7 +88,10 @@ impl FromStr for StackOp {
                     crate::rt_error!(op: v => [while])
                 }
             })),
-            [v @ b'A'..=b'Z'] => Ok(Enum::VarAccess(*v as _, |s, v| Ok(s.push_var(v)))),
+            [v @ b'A'..=b'Z'] => Ok(Enum::VarAccess(*v as _, |s, v| {
+                s.push_var(v);
+                Ok(())
+            })),
             [b':', v @ b'A'..=b'Z'] => Ok(Enum::VarAccess(*v as _, |s, v| s.pop_var(v))),
             b"$" => Ok(Enum::Simple(|s| {
                 let top = s.pop()?;
@@ -95,7 +100,8 @@ impl FromStr for StackOp {
                         return Err(RuntimeError::OutOfBounds(s.len(), i));
                     }
                     if let Some(v) = s.get_from_end(i as usize).cloned() {
-                        Ok(s.push(v))
+                        s.push(v);
+                        Ok(())
                     } else {
                         Err(RuntimeError::OutOfBounds(s.len(), i))
                     }
@@ -109,7 +115,8 @@ impl FromStr for StackOp {
                         keys.sort_by(|(_, key0), (_, key1)| key0.cmp(key1));
                         a.extend(keys.into_iter().map(|(v, _)| v));
                     }
-                    Ok(s.push(a.into()))
+                    s.push(a.into());
+                    Ok(())
                 } else {
                     crate::rt_error!(op: top => [index_sort])
                 }
@@ -153,7 +160,8 @@ impl Operator for StackOp {
             Enum::Simple(f) => f(stack),
             Enum::Push(v) => {
                 let v = generate_protovalue(stack, v.clone())?;
-                Ok(stack.push(v))
+                stack.push(v);
+                Ok(())
             }
             Enum::VarAccess(v, f) => f(stack, *v),
             Enum::Nth(n, f) => f(stack, *n),
@@ -165,7 +173,8 @@ impl Operator for StackOp {
             Enum::Simple(f) => f(stack),
             Enum::Push(v) => {
                 let v = generate_protovalue(stack, take(v))?;
-                Ok(stack.push(v))
+                stack.push(v);
+                Ok(())
             }
             Enum::VarAccess(v, f) => f(stack, *v),
             Enum::Nth(n, f) => f(stack, *n),

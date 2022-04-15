@@ -8,3 +8,4 @@ make_test!(modulo    : "5 2 %"           => 1);
 make_test!(xor       : "2 5 ^"           => 7);
 make_test!(and       : "2 5 &"           => 0);
 make_test!(and_or    : "12 7 2 & |"      => 14);
+make_test!(char_sum  : "a i b i +"       => b'a' + b'b');

@@ -28,9 +28,9 @@ impl FromStr for Box<dyn Operator> {
         s.parse::<BinaryOp>()
             .map(cast_box)
             .or_else(|_| s.parse::<UnaryOp>().map(cast_box))
+            .or_else(|_| s.parse::<Nullary>().map(cast_box))
             .or_else(|_| s.parse::<StackOp>().map(cast_box))
             .or_else(|_| s.parse::<Ternary>().map(cast_box))
-            .or_else(|_| s.parse::<Nullary>().map(cast_box))
             .map_err(|_| s.into())
     }
 }
