@@ -23,7 +23,8 @@ impl Operator for Ternary {
         let then = stack.pop()?;
         let cond = stack.pop()?;
         let v = if cond.into() { then } else { elze };
-        Ok(stack.push(v))
+        stack.push(v);
+        Ok(())
     }
 
     fn as_str(&self) -> &str {

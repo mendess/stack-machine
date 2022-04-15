@@ -67,7 +67,8 @@ where
         if cfg!(debug_assertions) {
             println!("{:?} apply `{}`", stack.as_slice(), op.as_ref().as_str());
         }
-        Ok(op.as_ref().run(stack)?)
+        op.as_ref().run(stack)?;
+        Ok(())
     })?;
     if cfg!(debug_assertions) {
         println!("END {:?}", stack.as_slice());

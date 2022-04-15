@@ -61,6 +61,7 @@ impl Eq for Value {}
 
 impl cmp::Ord for Value {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
+        #[allow(clippy::comparison_chain)]
         if self < other {
             cmp::Ordering::Less
         } else if self > other {
@@ -140,9 +141,7 @@ impl From<&str> for Value {
 
 impl Value {
     pub fn and(self, other: Value) -> Value {
-        (bool::from(&self) && bool::from(&other))
-            .then(|| other)
-            .unwrap_or(self)
+        bool::from(&self).then(|| other).unwrap_or(self)
     }
 
     pub fn or(self, other: Value) -> Value {

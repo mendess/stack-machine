@@ -139,7 +139,8 @@ impl<'i> Stack<'i> {
     }
 
     pub fn pop_var(&mut self, var: char) -> RuntimeResult<()> {
-        Ok(self[var] = self.top().map(Clone::clone)?)
+        self[var] = self.top().map(Clone::clone)?;
+        Ok(())
     }
 }
 

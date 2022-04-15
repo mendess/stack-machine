@@ -18,7 +18,8 @@ impl FromStr for Nullary {
                 |s| {
                     let mut buf = String::new();
                     s.input().read_to_string(&mut buf)?;
-                    Ok(s.push(buf.into()))
+                    s.push(buf.into());
+                    Ok(())
                 },
                 s.into(),
             )),
@@ -29,7 +30,8 @@ impl FromStr for Nullary {
                     if buf.ends_with('\n') {
                         buf.pop();
                     }
-                    Ok(s.push(Value::Str(buf)))
+                    s.push(Value::Str(buf));
+                    Ok(())
                 },
                 s.into(),
             )),

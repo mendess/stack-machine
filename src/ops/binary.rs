@@ -124,7 +124,7 @@ impl FromStr for BinaryOp {
                         _ => crate::rt_error!(op: a, b => [index]),
                     }
                 }
-                (a, b) => Ok((a.partial_cmp(&b) == Some(Ordering::Equal)).into()),
+                (a, b) => Ok((a.partial_cmp(b) == Some(Ordering::Equal)).into()),
             },
             "#" => |a: Value, b, _| a.pow(b),
             _ => return Err(()),
@@ -138,7 +138,8 @@ impl Operator for BinaryOp {
         let snd = stack.pop()?;
         let fst = stack.pop()?;
         let r = self.0(fst, snd, stack)?;
-        Ok(stack.push(r))
+        stack.push(r);
+        Ok(())
     }
 
     fn as_str(&self) -> &str {
