@@ -5,13 +5,13 @@ use std::{
     str::FromStr,
 };
 
-pub struct Ternary(String);
+pub struct Ternary(&'static str);
 
 impl FromStr for Ternary {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "?" => Ok(Self(s.into())),
+            "?" => Ok(Self("?")),
             _ => Err(()),
         }
     }
@@ -28,18 +28,18 @@ impl Operator for Ternary {
     }
 
     fn as_str(&self) -> &str {
-        &self.0
+        self.0
     }
 }
 
 impl Display for Ternary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(self.0)
     }
 }
 
 impl Debug for Ternary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(self.0)
     }
 }
