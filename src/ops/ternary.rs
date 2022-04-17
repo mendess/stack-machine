@@ -18,7 +18,7 @@ impl FromStr for Ternary {
 }
 
 impl Operator for Ternary {
-    fn run(&self, stack: &mut Stack) -> RuntimeResult<()> {
+    fn run<'v>(&self, stack: &mut Stack<'_, 'v>) -> RuntimeResult<'v, ()> {
         let elze = stack.pop()?;
         let then = stack.pop()?;
         let cond = stack.pop()?;

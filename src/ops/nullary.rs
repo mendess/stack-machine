@@ -5,10 +5,10 @@ use crate::{
 };
 use std::{
     fmt::{self, Debug, Display},
-    str::FromStr,
+    str::FromStr, borrow::Cow,
 };
 
-pub struct Nullary(fn(stack: &mut Stack) -> RuntimeResult<()>, String);
+pub struct Nullary(for<'fv> fn(stack: &mut Stack<'_, 'fv>) -> RuntimeResult<'fv, ()>, String);
 
 impl FromStr for Nullary {
     type Err = ();
@@ -30,7 +30,7 @@ impl FromStr for Nullary {
                     if buf.ends_with('\n') {
                         buf.pop();
                     }
-                    s.push(Value::Str(buf));
+                    s.push(Value::Str(Cow::Owned(buf)));
                     Ok(())
                 },
                 s.into(),
@@ -41,7 +41,7 @@ impl FromStr for Nullary {
 }
 
 impl Operator for Nullary {
-    fn run(&self, stack: &mut Stack) -> RuntimeResult<()> {
+    fn run<'v>(&self, stack: &mut Stack<'_, 'v>) -> RuntimeResult<'v, ()> {
         self.0(stack)
     }
 

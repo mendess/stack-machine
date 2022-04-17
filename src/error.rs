@@ -17,34 +17,34 @@ pub mod both {
 }
 
 #[derive(Debug)]
-pub enum Error {
+pub enum Error<'v> {
     Syntax(SyntaxError),
-    Runtime(RuntimeError),
+    Runtime(RuntimeError<'v>),
 }
 
 #[derive(Debug)]
-pub enum RuntimeError {
+pub enum RuntimeError<'v> {
     StackEmpty,
     Io(io::Error),
-    InvalidOperation(Vec<Value>, &'static str),
-    InvalidCast(Value, &'static str),
+    InvalidOperation(Vec<Value<'v>>, &'static str),
+    InvalidCast(Value<'v>, &'static str),
     OutOfBounds(usize, i64),
     FoldingEmptyArray,
 }
 
-impl From<RuntimeError> for Error {
-    fn from(e: RuntimeError) -> Self {
+impl<'v> From<RuntimeError<'v>> for Error<'v> {
+    fn from(e: RuntimeError<'v>) -> Self {
         Self::Runtime(e)
     }
 }
 
-impl From<io::Error> for RuntimeError {
+impl<'v> From<io::Error> for RuntimeError<'v> {
     fn from(e: io::Error) -> Self {
         Self::Io(e)
     }
 }
 
-pub type RuntimeResult<T> = Result<T, RuntimeError>;
+pub type RuntimeResult<'v, T> = Result<T, RuntimeError<'v>>;
 
 #[macro_export]
 macro_rules! rt_error {
@@ -83,7 +83,7 @@ impl From<String> for SyntaxError {
     }
 }
 
-impl From<SyntaxError> for Error {
+impl From<SyntaxError> for Error<'_> {
     fn from(e: SyntaxError) -> Self {
         Self::Syntax(e)
     }

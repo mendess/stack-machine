@@ -5,6 +5,7 @@ use crate::{
     stack::{value::Value, Stack},
 };
 use std::{
+    borrow::{BorrowMut, Cow},
     fmt::{self, Debug, Display},
     str::FromStr,
 };
@@ -12,11 +13,15 @@ use std::{
 pub struct UnaryOp(Enum, String);
 
 enum Enum {
-    Transform(fn(Value) -> RuntimeResult<Value>),
-    TransformStack(fn(Value, &mut Stack) -> RuntimeResult<Value>),
-    TransformStar(fn(Value, &mut Stack) -> RuntimeResult<Vec<Value>>),
+    Transform(for<'v> fn(Value<'v>) -> RuntimeResult<'v, Value<'v>>),
+    TransformStack(
+        for<'fv> fn(Value<'fv>, &'_ mut Stack<'_, 'fv>) -> RuntimeResult<'fv, Value<'fv>>,
+    ),
+    TransformStar(
+        for<'fv> fn(Value<'fv>, &mut Stack<'_, 'fv>) -> RuntimeResult<'fv, Vec<Value<'fv>>>,
+    ),
     Borrow(fn(&Value)),
-    Calculate(fn(&Value) -> RuntimeResult<Value>),
+    Calculate(for<'fv> fn(&Value<'fv>) -> RuntimeResult<'fv, Value<'fv>>),
 }
 
 impl FromStr for UnaryOp {
@@ -35,10 +40,10 @@ impl FromStr for UnaryOp {
                     _ => crate::rt_error!(op: x => [bit_not_or_spread]),
                 }),
                 "!" => Enum::Transform(|x| Ok((!bool::from(&x)).into())),
-                "c" => Enum::Transform(Value::to_char),
-                "f" => Enum::Transform(Value::to_float),
-                "i" => Enum::Transform(Value::to_int),
-                "s" => Enum::Transform(Value::to_str),
+                "c" => Enum::Transform(|v| v.to_char()),
+                "f" => Enum::Transform(|v| v.to_float()),
+                "i" => Enum::Transform(|v| v.to_int()),
+                "s" => Enum::Transform(|v| v.to_str()),
                 "p" => Enum::Borrow(|x| println!("{}", x)),
                 "," => Enum::TransformStack(|x, s| match x {
                     Value::Integer(i) => Ok((0..i).map(Value::from).collect::<Vec<_>>().into()),
@@ -77,6 +82,7 @@ impl FromStr for UnaryOp {
                                 }
                             }
                             let mut idx = 0;
+                            let mut string = string.into_owned();
                             string.retain(|_| {
                                 let keep = match indexes.last() {
                                     Some(i) if *i == idx => {
@@ -89,7 +95,7 @@ impl FromStr for UnaryOp {
                                 keep
                             });
                             debug_assert!(indexes.is_empty());
-                            Ok(Value::Str(string))
+                            Ok(Value::Str(Cow::Owned(string)))
                         }
                         x => crate::rt_error!(op: x => [filter]),
                     },
@@ -119,12 +125,10 @@ impl FromStr for UnaryOp {
 }
 
 impl Operator for UnaryOp {
-    fn run(&self, stack: &mut Stack) -> RuntimeResult<()> {
+    fn run<'v>(&self, stack: &mut Stack<'_, 'v>) -> RuntimeResult<'v, ()> {
         match self.0 {
             Enum::Transform(f) => stack.pop().and_then(f).map(|v| stack.push(v)),
-            Enum::TransformStack(f) => {
-                stack.pop().and_then(|v| f(v, stack)).map(|v| stack.push(v))
-            }
+            Enum::TransformStack(f) => stack.pop().and_then(|v| f(v, stack)).map(|v| stack.push(v)),
             Enum::TransformStar(f) => stack
                 .pop()
                 .and_then(|v| f(v, stack))

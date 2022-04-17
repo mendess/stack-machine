@@ -11,21 +11,26 @@ use either::{Left, Right};
 use std::{
     fmt::{self, Debug, Display},
     mem::take,
-    str::{from_utf8, FromStr},
+    str::from_utf8,
 };
 
-pub struct StackOp(Enum, String);
+pub struct StackOp<'v>(Enum<'v>, String);
 
-enum Enum {
-    Simple(fn(&mut Stack<'_>) -> RuntimeResult<()>),
-    Push(ProtoValue),
-    Nth(usize, fn(&mut Stack<'_>, usize) -> RuntimeResult<()>),
-    VarAccess(char, fn(&mut Stack<'_>, char) -> RuntimeResult<()>),
+enum Enum<'v> {
+    Simple(for<'fv> fn(&mut Stack<'_, 'fv>) -> RuntimeResult<'fv, ()>),
+    Push(ProtoValue<'v>),
+    Nth(
+        usize,
+        for<'fv> fn(&mut Stack<'_, 'fv>, usize) -> RuntimeResult<'fv, ()>,
+    ),
+    VarAccess(
+        char,
+        for<'fv> fn(&mut Stack<'_, 'fv>, char) -> RuntimeResult<'fv, ()>,
+    ),
 }
 
-impl FromStr for StackOp {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+impl<'v> StackOp<'v> {
+    pub fn from_str(s: &'v str) -> Option<Self> {
         let e = match s.as_bytes() {
             b";" => Ok(Enum::Simple(|s| s.pop().map(|_| ()))),
             b"\\" => Ok(Enum::Simple(|s| {
@@ -134,13 +139,16 @@ impl FromStr for StackOp {
                     Err(())
                 }
             }
-            _ => Ok(Enum::Push(s.parse()?)),
+            _ => Ok(Enum::Push(ProtoValue::from_str(s)?)),
         };
-        e.map(|e| Self(e, s.into()))
+        e.map(|e| Self(e, s.into())).ok()
     }
 }
 
-fn generate_protovalue(stack: &mut Stack, v: ProtoValue) -> RuntimeResult<Value> {
+fn generate_protovalue<'s>(
+    stack: &mut Stack<'_, 's>,
+    v: ProtoValue<'s>,
+) -> RuntimeResult<'s, Value<'s>> {
     match v.0 {
         Left(v) => Ok(v),
         Right(ExprVec(v)) => Ok(Value::Array(
@@ -154,8 +162,8 @@ fn generate_protovalue(stack: &mut Stack, v: ProtoValue) -> RuntimeResult<Value>
     }
 }
 
-impl Operator for StackOp {
-    fn run(&self, stack: &mut Stack) -> Result<(), RuntimeError> {
+impl<'v> Operator<'v> for StackOp<'v> {
+    fn run(&self, stack: &mut Stack<'_, 'v>) -> RuntimeResult<'v, ()> {
         match &self.0 {
             Enum::Simple(f) => f(stack),
             Enum::Push(v) => {
@@ -168,7 +176,7 @@ impl Operator for StackOp {
         }
     }
 
-    fn run_mut(&mut self, stack: &mut Stack) -> Result<(), RuntimeError> {
+    fn run_mut(&mut self, stack: &mut Stack<'_, 'v>) -> RuntimeResult<'v, ()> {
         match &mut self.0 {
             Enum::Simple(f) => f(stack),
             Enum::Push(v) => {
@@ -186,13 +194,13 @@ impl Operator for StackOp {
     }
 }
 
-impl Display for StackOp {
+impl Display for StackOp<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.1)
     }
 }
 
-impl Debug for StackOp {
+impl Debug for StackOp<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.1)
     }

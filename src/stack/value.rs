@@ -1,31 +1,35 @@
-use crate::{error::both::*, ops::Operator, util::str_ext::StrExt};
+use crate::{
+    error::both::*,
+    ops::{operator_from_str, Operator},
+    util::str_ext::StrExt,
+};
 use itertools::Itertools;
 use std::{
+    borrow::Cow,
     cmp,
     convert::TryInto,
     fmt::{self, Write},
-    ops,
+    ops::{self, Deref},
     rc::Rc,
-    str::FromStr,
 };
 
 #[derive(Clone, Debug)]
-pub enum Value {
+pub enum Value<'s> {
     Char(char),
     Integer(i64),
     Float(f64),
-    Str(String), // TODO: try to make it a cow
-    Array(Vec<Value>),
-    Block(Vec<Rc<dyn Operator>>),
+    Str(Cow<'s, str>), // TODO: try to make it a cow
+    Array(Vec<Value<'s>>),
+    Block(Vec<Rc<dyn Operator<'s> + 's>>),
 }
 
-impl Default for Value {
+impl Default for Value<'_> {
     fn default() -> Self {
         Self::Integer(0)
     }
 }
 
-impl cmp::PartialEq for Value {
+impl cmp::PartialEq for Value<'_> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Value::Char(c0), Value::Char(c1)) => c0 == c1,
@@ -43,7 +47,7 @@ impl cmp::PartialEq for Value {
     }
 }
 
-impl cmp::PartialOrd for Value {
+impl cmp::PartialOrd for Value<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         match (self, other) {
             (Value::Char(c0), Value::Char(c1)) => c0.partial_cmp(c1),
@@ -57,9 +61,9 @@ impl cmp::PartialOrd for Value {
     }
 }
 
-impl Eq for Value {}
+impl Eq for Value<'_> {}
 
-impl cmp::Ord for Value {
+impl cmp::Ord for Value<'_> {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         #[allow(clippy::comparison_chain)]
         if self < other {
@@ -72,7 +76,7 @@ impl cmp::Ord for Value {
     }
 }
 
-impl From<&Value> for bool {
+impl From<&Value<'_>> for bool {
     fn from(v: &Value) -> Self {
         match v {
             Value::Char('\0') | Value::Integer(0) => false,
@@ -84,7 +88,7 @@ impl From<&Value> for bool {
     }
 }
 
-impl From<Value> for bool {
+impl From<Value<'_>> for bool {
     fn from(v: Value) -> Self {
         match v {
             Value::Char('\0') | Value::Integer(0) => false,
@@ -99,7 +103,7 @@ impl From<Value> for bool {
 macro_rules! impl_from_rust {
     ($($variant:ident [$($t:ty),* $(,)?]);* $(;)?) => {
         $($(
-        impl From<$t> for Value {
+        impl From<$t> for Value<'_> {
             fn from(t: $t) -> Self {
                 Self::$variant(t as _)
             }
@@ -112,51 +116,74 @@ impl_from_rust! {
     Integer [usize, i64, u32, i32, u16, u8, bool];
     Float [f32, f64];
     Char [char];
-    Str [String];
+    // Str [String];
 }
 
-impl<T> From<Vec<T>> for Value
+impl From<String> for Value<'_> {
+    fn from(s: String) -> Self {
+        Self::Str(Cow::Owned(s))
+    }
+}
+
+impl<'v> From<Cow<'v, str>> for Value<'v> {
+    fn from(s: Cow<'v, str>) -> Self {
+        Self::Str(s)
+    }
+}
+
+impl<'s> From<&'s str> for Value<'s> {
+    fn from(s: &'s str) -> Self {
+        Self::Str(Cow::Borrowed(s))
+    }
+}
+
+impl<T> From<Vec<T>> for Value<'_>
 where
-    T: Into<Value>,
+    T: Into<Self>,
 {
     fn from(t: Vec<T>) -> Self {
         Self::Array(t.into_iter().map(T::into).collect())
     }
 }
 
-impl<T, const N: usize> From<[T; N]> for Value
+impl<T, const N: usize> From<[T; N]> for Value<'_>
 where
-    T: Into<Value>,
+    T: Into<Self>,
 {
     fn from(a: [T; N]) -> Self {
         Self::Array(a.into_iter().map(Into::into).collect())
     }
 }
 
-impl From<&str> for Value {
-    fn from(s: &str) -> Self {
-        Self::from(s.to_string())
+impl<'v> Value<'v> {
+    pub fn into_owned(self) -> Value<'static> {
+        match self {
+            Self::Str(s) => Value::Str(Cow::Owned(s.into_owned())),
+            Self::Char(c) => Value::Char(c),
+            Self::Float(f) => Value::Float(f),
+            Self::Integer(i) => Value::Integer(i),
+            Value::Array(a) => Value::Array(a.into_iter().map(Value::into_owned).collect()),
+            Value::Block(b) => Value::Block(b),
+        }
     }
-}
 
-impl Value {
-    pub fn and(self, other: Value) -> Value {
+    pub fn and(self, other: Value<'v>) -> Value<'v> {
         bool::from(&self).then(|| other).unwrap_or(self)
     }
 
-    pub fn or(self, other: Value) -> Value {
+    pub fn or(self, other: Value<'v>) -> Value<'v> {
         bool::from(&self).then(|| self).unwrap_or(other)
     }
 
-    pub fn min(self, other: Value) -> RuntimeResult<Value> {
+    pub fn min(self, other: Value<'v>) -> RuntimeResult<'v, Value<'v>> {
         Ok(if self < other { self } else { other })
     }
 
-    pub fn max(self, other: Value) -> RuntimeResult<Value> {
+    pub fn max(self, other: Value<'v>) -> RuntimeResult<'v, Value<'v>> {
         Ok(if other < self { self } else { other })
     }
 
-    pub fn pow(self, other: Value) -> RuntimeResult<Self> {
+    pub fn pow(self, other: Value<'v>) -> RuntimeResult<'v, Self> {
         match (&self, &other) {
             (Self::Integer(i1), Self::Integer(i2)) => match (*i2).try_into() {
                 Ok(i2) => Ok(Self::Integer(i1.pow(i2))),
@@ -168,9 +195,11 @@ impl Value {
                 }
                 Err(_) => unreachable!(),
             },
-            (Self::Str(haystack), Self::Str(needle)) => {
-                Ok(haystack.find(needle).map(|i| i as i64).unwrap_or(-1).into())
-            }
+            (Self::Str(haystack), Self::Str(needle)) => Ok(haystack
+                .find(needle.deref())
+                .map(|i| i as i64)
+                .unwrap_or(-1)
+                .into()),
             (Self::Str(haystack), Self::Char(needle)) => Ok(haystack
                 .find(*needle)
                 .map(|i| i as i64)
@@ -180,7 +209,7 @@ impl Value {
         }
     }
 
-    pub fn to_char(self) -> RuntimeResult<Self> {
+    pub fn to_char(self) -> RuntimeResult<'v, Self> {
         Ok(Value::Char(match self {
             Value::Char(c) => c,
             Value::Integer(i) => match <i64 as TryInto<u32>>::try_into(i).map(TryInto::try_into) {
@@ -194,7 +223,7 @@ impl Value {
         }))
     }
 
-    pub fn to_float(self) -> RuntimeResult<Self> {
+    pub fn to_float(self) -> RuntimeResult<'v, Self> {
         Ok(Value::Float(match self {
             Value::Char(c) => match c.is_ascii().then(|| c as u8) {
                 Some(c) => c as _,
@@ -206,7 +235,7 @@ impl Value {
         }))
     }
 
-    pub fn to_int(self) -> RuntimeResult<Self> {
+    pub fn to_int(self) -> RuntimeResult<'v, Self> {
         Ok(Value::Integer(match self {
             Value::Char(c) => c as i64,
             Value::Integer(i) => i,
@@ -222,16 +251,16 @@ impl Value {
         }))
     }
 
-    pub fn to_str(self) -> RuntimeResult<Self> {
+    pub fn to_str(self) -> RuntimeResult<'v, Self> {
         Ok(Value::Str(match self {
-            Value::Char(c) => c.to_string(),
-            Value::Integer(i) => i.to_string(),
-            Value::Float(f) => f.to_string(),
+            Value::Char(c) => Cow::Owned(c.to_string()),
+            Value::Integer(i) => Cow::Owned(i.to_string()),
+            Value::Float(f) => Cow::Owned(f.to_string()),
             Value::Str(s) => s,
             Value::Array(a) => {
                 let mut s = String::new();
                 let _ = write!(s, "{:?}", a);
-                s
+                Cow::Owned(s)
             }
             Value::Block(_) => crate::rt_error!(convert: self, String),
         }))
@@ -246,8 +275,8 @@ macro_rules! impl_math {
         $(($left:pat, $right:pat) => $do:expr),* $(,)?
     }) => {
 
-        impl $trait for Value {
-            type Output = RuntimeResult<Self>;
+        impl<'v> $trait for Value<'v> {
+            type Output = RuntimeResult<'v, Self>;
 
             fn $name(self, other: Self) -> Self::Output {
                 let v = match (self, other) {
@@ -271,11 +300,15 @@ macro_rules! impl_math {
 
 impl_math!(ops::Add, add {
     (Self::Char(c), Self::Integer(i)) => Self::Char((c as u8 + i as u8) as char),
-    (Self::Str(s1), Self::Str(s2)) => Self::Str(s1 + &s2),
-    (Self::Str(s), any) => Self::Str(
-        s + &if let Value::Str(s) = any.to_str()? { s } else { unreachable!() }
-    ),
-    (Self::Char(c), Self::Str(mut s)) => Self::Str({ s.push(c); s }),
+    (Self::Str(s1), Self::Str(s2)) => Self::Str(Cow::Owned(s1.into_owned() + &s2)),
+    (Self::Str(s), any) => Self::Str(Cow::Owned(
+        s.into_owned() + &if let Value::Str(s) = any.to_str()? { s } else { unreachable!() }
+    )),
+    (Self::Char(c), Self::Str(mut s)) => Self::Str({
+        let mut owned = s.into_owned();
+        owned.push(c);
+        Cow::Owned(owned)
+    }),
     (Self::Array(mut a1), Self::Array(a2)) => {
         a1.extend(a2);
         Self::Array(a1)
@@ -301,10 +334,10 @@ impl_math!(ops::Mul, mul {
         a.extend(clone);
         a
     }),
-    (Self::Str(s), Self::Integer(i)) => Self::Str(s.repeat(i as usize)),
+    (Self::Str(s), Self::Integer(i)) => Self::Str(Cow::Owned(s.repeat(i as usize))),
 });
 impl_math!(ops::Div, div {
-    (Self::Str(s), Self::Str(delim)) => Self::Array(s.split(&delim).map(Value::from).collect()),
+    (Self::Str(s), Self::Str(delim)) => Self::Array(s.split(delim.deref()).map(Value::from).collect()),
 });
 impl_math!(ops::Rem, rem);
 
@@ -316,8 +349,8 @@ macro_rules! impl_bit {
         $($pattern:pat => $do:expr),* $(,)?
     }) => {
 
-        impl $trait for Value {
-            type Output = RuntimeResult<Self>;
+        impl<'v> $trait for Value<'v> {
+            type Output = RuntimeResult<'v, Self>;
 
             fn $name(self, other: Self) -> Self::Output {
                 let v = match (self, other) {
@@ -338,19 +371,18 @@ impl_bit!(ops::BitXor, bitxor);
 use either::{Either, Left, Right};
 
 #[derive(Debug, Default, Clone)]
-pub struct ExprVec(pub Vec<Rc<dyn Operator>>);
+pub struct ExprVec<'s>(pub Vec<Rc<dyn Operator<'s> + 's>>);
 #[derive(Debug, Clone)]
-pub struct ProtoValue(pub Either<Value, ExprVec>);
+pub struct ProtoValue<'s>(pub Either<Value<'s>, ExprVec<'s>>);
 
-impl Default for ProtoValue {
+impl Default for ProtoValue<'_> {
     fn default() -> Self {
         Self(Left(Value::default()))
     }
 }
 
-impl FromStr for ProtoValue {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+impl<'v> ProtoValue<'v> {
+    pub fn from_str(s: &'v str) -> Option<Self> {
         None.or_else(|| {
             matches!(s.as_bytes(), [b'a'..=b'z'])
                 .then(|| s.parse().map(Value::Char).map(Left).ok())
@@ -361,18 +393,24 @@ impl FromStr for ProtoValue {
         .or_else(|| Value::parse_array(s).map(Right))
         .or_else(|| Value::parse_string(s).map(Left))
         .or_else(|| Value::parse_block(s).map(Left))
-        .ok_or(())
         .map(Self)
     }
+
+    // pub fn into_owned(self) -> ProtoValue<'static> {
+    //     ProtoValue(match self.0 {
+    //         Either::Left(l) => Either::Left(l.into_owned()),
+    //         Either::Right(r) => Either::Right(r.into_owned()),
+    //     })
+    // }
 }
 
-impl Value {
-    fn parse_array(s: &str) -> Option<ExprVec> {
+impl<'s> Value<'s> {
+    fn parse_array(s: &'s str) -> Option<ExprVec<'s>> {
         if s.starts_with('[') && s.ends_with(']') {
             Some(ExprVec(
                 s.trim_matches(&['[', ']'][..])
                     .split_tokens()
-                    .map(str::parse::<Box<dyn Operator>>)
+                    .map(operator_from_str)
                     .map(Result::ok)
                     .map(|x| x.map(Rc::from))
                     .collect::<Option<_>>()?,
@@ -382,7 +420,7 @@ impl Value {
         }
     }
 
-    fn parse_string(s: &str) -> Option<Self> {
+    fn parse_string(s: &'s str) -> Option<Self> {
         if s.starts_with('"') && s.ends_with('"') {
             Some(Value::Str(s.trim_matches('"').into()))
         } else {
@@ -390,12 +428,12 @@ impl Value {
         }
     }
 
-    fn parse_block(s: &str) -> Option<Self> {
+    fn parse_block(s: &'s str) -> Option<Self> {
         if s.starts_with('{') && s.ends_with('}') {
             Some(Value::Block(
                 s.trim_matches(&['{', '}'][..])
                     .split_tokens()
-                    .map(|t| t.parse::<Box<dyn Operator>>().map(Rc::from))
+                    .map(|t| operator_from_str(t).map(Rc::from))
                     .map(Result::ok)
                     .collect::<Option<_>>()?,
             ))
@@ -405,7 +443,7 @@ impl Value {
     }
 }
 
-impl fmt::Display for Value {
+impl fmt::Display for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Char(c) => write!(f, "c({})", c),
@@ -415,5 +453,10 @@ impl fmt::Display for Value {
             Value::Array(a) => write!(f, "a([{}])", a.iter().format(",")),
             Value::Block(b) => write!(f, "b([{}])", b.iter().format(",")),
         }
+    }
+}
+impl ExprVec<'_> {
+    fn into_owned(self) -> ExprVec<'static> {
+        ExprVec(self.0.into_owned())
     }
 }

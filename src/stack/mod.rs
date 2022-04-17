@@ -9,39 +9,39 @@ use std::{
 };
 pub use value::Value;
 
-pub struct Stack<'i> {
+pub struct Stack<'i, 's> {
     io_input: Box<dyn BufRead + 'i>,
     // io_output: Box<dyn Write>,
-    variables: [Value; (b'Z' - b'A') as usize + 1],
-    s: Vec<Value>,
+    variables: [Value<'s>; (b'Z' - b'A') as usize + 1],
+    s: Vec<Value<'s>>,
 }
 
-impl ops::Index<char> for Stack<'_> {
-    type Output = Value;
+impl<'v> ops::Index<char> for Stack<'_, 'v> {
+    type Output = Value<'v>;
     fn index(&self, name: char) -> &Self::Output {
         &self.variables[name as usize - b'A' as usize]
     }
 }
 
-impl ops::IndexMut<char> for Stack<'_> {
+impl<'v> ops::IndexMut<char> for Stack<'_, 'v> {
     fn index_mut(&mut self, name: char) -> &mut Self::Output {
         &mut self.variables[name as usize - b'A' as usize]
     }
 }
 
-impl Default for Stack<'static> {
+impl Default for Stack<'static, '_> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Stack<'static> {
+impl Stack<'static, '_> {
     pub fn new() -> Self {
         Self::with_input(BufReader::new(io::stdin()))
     }
 }
 
-impl<'i> Stack<'i> {
+impl<'i, 'v> Stack<'i, 'v> {
     pub fn with_input<I: BufRead + 'i>(i: I) -> Self {
         let variables = Default::default();
         let mut s = Self {
@@ -64,15 +64,15 @@ impl<'i> Stack<'i> {
         s
     }
 
-    pub fn push(&mut self, v: Value) {
+    pub fn push(&mut self, v: Value<'v>) {
         self.s.push(v)
     }
 
-    pub fn pop(&mut self) -> RuntimeResult<Value> {
+    pub fn pop(&mut self) -> RuntimeResult<'v, Value<'v>> {
         self.s.pop().ok_or(RuntimeError::StackEmpty)
     }
 
-    pub fn top(&self) -> RuntimeResult<&Value> {
+    pub fn top(&self) -> RuntimeResult<'v, &Value<'v>> {
         self.s.last().ok_or(RuntimeError::StackEmpty)
     }
 
@@ -80,20 +80,20 @@ impl<'i> Stack<'i> {
     //     self.s.last_mut()
     // }
 
-    pub fn get<I>(&self, index: I) -> Option<&<I as SliceIndex<[Value]>>::Output>
+    pub fn get<I>(&self, index: I) -> Option<&<I as SliceIndex<[Value<'v>]>>::Output>
     where
-        I: SliceIndex<[Value]>,
+        I: SliceIndex<[Value<'v>]>,
     {
         self.s.get(index)
     }
 
-    pub fn get_from_end(&self, index: usize) -> Option<&Value> {
+    pub fn get_from_end(&self, index: usize) -> Option<&Value<'v>> {
         self.s.get(self.len().wrapping_sub(index).wrapping_sub(1))
     }
 
-    pub fn get_mut<I>(&mut self, index: I) -> Option<&mut <I as SliceIndex<[Value]>>::Output>
+    pub fn get_mut<I>(&mut self, index: I) -> Option<&mut <I as SliceIndex<[Value<'v>]>>::Output>
     where
-        I: SliceIndex<[Value]>,
+        I: SliceIndex<[Value<'v>]>,
     {
         self.s.get_mut(index)
     }
@@ -106,15 +106,15 @@ impl<'i> Stack<'i> {
         self.s.is_empty()
     }
 
-    pub fn into_vec(self) -> Vec<Value> {
+    pub fn into_vec(self) -> Vec<Value<'v>> {
         self.s
     }
 
-    pub fn take(&mut self) -> Vec<Value> {
+    pub fn take(&mut self) -> Vec<Value<'v>> {
         std::mem::take(&mut self.s)
     }
 
-    pub fn as_slice(&self) -> &[Value] {
+    pub fn as_slice(&self) -> &[Value<'v>] {
         &self.s
     }
 
@@ -126,7 +126,7 @@ impl<'i> Stack<'i> {
     //     &mut *self.io_output
     // }
 
-    pub fn take_as_value(&mut self) -> RuntimeResult<Value> {
+    pub fn take_as_value(&mut self) -> RuntimeResult<'v, Value<'v>> {
         match self.s.len() {
             0 => Err(RuntimeError::StackEmpty),
             1 => Ok(self.s.pop().unwrap()),
@@ -138,13 +138,17 @@ impl<'i> Stack<'i> {
         self.s.push(self[var].clone());
     }
 
-    pub fn pop_var(&mut self, var: char) -> RuntimeResult<()> {
-        self[var] = self.top().map(Clone::clone)?;
+    pub fn pop_var(&mut self, var: char) -> RuntimeResult<'v, ()> {
+        let value = match self.top() {
+            Ok(top) => top,
+            Err(e) => return Err(e),
+        };
+        self[var] = value.clone();
         Ok(())
     }
 }
 
-impl fmt::Display for Stack<'_> {
+impl<'v> fmt::Display for Stack<'_, 'v> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[")?;
         for v in &self.s[..(self.len() - 1)] {

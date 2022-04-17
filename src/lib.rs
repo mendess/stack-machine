@@ -11,22 +11,22 @@ use std::io::{self, BufRead, BufReader};
 use util::str_ext::StrExt;
 
 #[derive(Default)]
-pub struct Repl {
-    stack: stack::Stack<'static>,
+pub struct Repl<'v> {
+    stack: stack::Stack<'static, 'v>,
 }
 
-impl Repl {
+impl<'v> Repl<'v> {
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn next_line(&mut self, s: &str) {
+    pub fn next_line(&mut self, s: &'v str) {
         if let Err(e) = ops::parse_and_execute(s.split_tokens(), &mut self.stack) {
             eprintln!("{:?}", e);
         }
     }
 
-    pub fn into_vec(self) -> Vec<Value> {
+    pub fn into_vec(self) -> Vec<Value<'v>> {
         self.stack.into_vec()
     }
 }
