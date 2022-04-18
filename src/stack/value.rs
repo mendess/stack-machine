@@ -1,7 +1,7 @@
 use crate::{error::both::*, ops::Operator, util::str_ext::StrExt};
 use itertools::Itertools;
 use std::{
-    cmp,
+    cmp::{self, Ordering},
     convert::TryInto,
     fmt::{self, Write},
     ops,
@@ -27,19 +27,7 @@ impl Default for Value {
 
 impl cmp::PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Value::Char(c0), Value::Char(c1)) => c0 == c1,
-            (Value::Integer(i0), Value::Integer(i1)) => i0 == i1,
-            (Value::Float(f0), Value::Float(f1)) => f0 == f1,
-            (Value::Str(s0), Value::Str(s1)) => s0 == s1,
-            (Value::Array(a0), Value::Array(a1)) => a0 == a1,
-            (Value::Block(b0), Value::Block(b1)) => b0
-                .iter()
-                .map(|o| o.as_str())
-                .zip(b1.iter().map(|o| o.as_str()))
-                .all(|(b0, b1)| b0 == b1),
-            _ => false,
-        }
+        self.partial_cmp(other) == Some(Ordering::Equal)
     }
 }
 
@@ -48,10 +36,17 @@ impl cmp::PartialOrd for Value {
         match (self, other) {
             (Value::Char(c0), Value::Char(c1)) => c0.partial_cmp(c1),
             (Value::Integer(i0), Value::Integer(i1)) => i0.partial_cmp(i1),
+            (Value::Float(f0), Value::Integer(i1)) => f0.partial_cmp(&(*i1 as f64)),
+            (Value::Integer(i0), Value::Float(f1)) => (*i0 as f64).partial_cmp(f1),
             (Value::Float(f0), Value::Float(f1)) => f0.partial_cmp(f1),
             (Value::Str(s0), Value::Str(s1)) => s0.partial_cmp(s1),
             (Value::Array(a0), Value::Array(a1)) => a0.partial_cmp(a1),
-            (Value::Block(_), Value::Block(_)) => None,
+            (Value::Block(b0), Value::Block(b1)) => b0
+                .iter()
+                .map(|o| o.as_str())
+                .zip(b1.iter().map(|o| o.as_str()))
+                .all(|(b0, b1)| b0 == b1)
+                .then(|| Ordering::Equal),
             _ => None,
         }
     }
@@ -61,14 +56,7 @@ impl Eq for Value {}
 
 impl cmp::Ord for Value {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
-        #[allow(clippy::comparison_chain)]
-        if self < other {
-            cmp::Ordering::Less
-        } else if self > other {
-            cmp::Ordering::Greater
-        } else {
-            cmp::Ordering::Equal
-        }
+        self.partial_cmp(other).unwrap_or(Ordering::Equal)
     }
 }
 
