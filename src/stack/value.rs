@@ -191,6 +191,10 @@ impl Value {
             },
             Value::Integer(i) => i as f64,
             Value::Float(f) => f,
+            Value::Str(ref s) => match s.parse() {
+                Ok(f) => f,
+                Err(_) => crate::rt_error!(convert: self, f64),
+            },
             _ => crate::rt_error!(convert: self, f64),
         }))
     }
@@ -200,13 +204,10 @@ impl Value {
             Value::Char(c) => c as i64,
             Value::Integer(i) => i,
             Value::Float(f) => f as i64,
-            Value::Str(ref s) => {
-                if let Ok(i) = s.parse() {
-                    i
-                } else {
-                    crate::rt_error!(convert: self, i64)
-                }
-            }
+            Value::Str(ref s) => match s.parse() {
+                Ok(i) => i,
+                Err(_) => crate::rt_error!(convert: self, i64),
+            },
             _ => crate::rt_error!(convert: self, i64),
         }))
     }
