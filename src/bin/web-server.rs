@@ -19,6 +19,7 @@ use tokio::sync::mpsc::{self, channel};
 struct Request {
     ip: IpAddr,
     program: Program,
+    result: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -83,11 +84,18 @@ async fn run(
 ) -> impl Responder {
     s.input.retain(|c| c != '\r');
 
+    let result = std::panic::catch_unwind(|| run_with_input(&s.s, Cursor::new(&s.input)));
+
     if let Some(ip) = req.peer_addr().map(|x| x.ip()) {
         if let Err(e) = tx
             .send(Request {
                 ip,
                 program: s.0.clone(),
+                result: match &result {
+                    Ok(Ok(v)) => format!("Ok: [{}]", v.iter().format(",")),
+                    Ok(Err(e)) => format!("\x1b[31mErr:\x1b[0m {:?}", e),
+                    Err(e) => format!("\x1b[1;31mpanicked at\x1b[0m '{:?}'", e),
+                },
             })
             .await
         {
@@ -95,7 +103,7 @@ async fn run(
         }
     }
 
-    match std::panic::catch_unwind(|| run_with_input(&s.s, Cursor::new(&s.input))) {
+    match result {
         Ok(Ok(v)) => HttpResponse::Ok().body(iframe!("[{}]", v.into_iter().format(","))),
         Ok(Err(e)) => HttpResponse::BadRequest().body(iframe!("{:?}", e)),
         Err(e) => HttpResponse::InternalServerError().body(iframe!("panicked at '{:?}'", e)),
@@ -117,7 +125,12 @@ async fn main() -> io::Result<()> {
     let (tx, mut rx) = channel::<Request>(200);
     tokio::spawn(async move {
         eprintln!("storing task starting up");
-        while let Some(Request { ip, program }) = rx.recv().await {
+        while let Some(Request {
+            ip,
+            program,
+            result,
+        }) = rx.recv().await
+        {
             let u = match tokio::task::spawn_blocking(move || store(ip)).await {
                 Ok(Ok(u)) => u,
                 Ok(Err(e)) => {
@@ -129,7 +142,7 @@ async fn main() -> io::Result<()> {
                     ip.to_string()
                 }
             };
-            eprintln!("{}@[{:?}] {:?}", u, Utc::now(), program);
+            eprintln!("{}@[{:?}] {:?} => {result}", u, Utc::now(), program);
         }
         eprintln!("storing task shutting down");
     });
