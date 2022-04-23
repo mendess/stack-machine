@@ -178,6 +178,7 @@ impl Value {
             Value::Float(f) if (0.0..i8::MAX as f64).contains(&f) && f.fract() == 0.0 => {
                 f as u8 as _
             }
+            Value::Str(s) if s.chars().count() == 1 => s.chars().next().unwrap(),
             _ => crate::rt_error!(convert: self, char),
         }))
     }
@@ -258,6 +259,7 @@ macro_rules! impl_math {
 }
 
 impl_math!(ops::Add, add {
+    (Self::Char(c0), Self::Char(c1)) => Self::Char((c0 as u8 + c1 as u8) as char),
     (Self::Char(c), Self::Integer(i)) => Self::Char((c as u8 + i as u8) as char),
     (Self::Str(s1), Self::Str(s2)) => Self::Str(s1 + &s2),
     (Self::Str(s), any) => Self::Str(
