@@ -1,5 +1,5 @@
 use super::Operator;
-use crate::{error::runtime::*, stack::Stack};
+use crate::stack::Stack;
 use std::{
     fmt::{self, Debug, Display},
     str::FromStr,
@@ -18,7 +18,7 @@ impl FromStr for Ternary {
 }
 
 impl Operator for Ternary {
-    fn run(&self, stack: &mut Stack) -> RuntimeResult<()> {
+    fn run(&self, stack: &mut Stack) -> Result<(), crate::Error> {
         let elze = stack.pop()?;
         let then = stack.pop()?;
         let cond = stack.pop()?;

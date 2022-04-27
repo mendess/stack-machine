@@ -30,6 +30,7 @@ pub enum RuntimeError {
     InvalidCast(Value, &'static str),
     OutOfBounds(usize, i64),
     FoldingEmptyArray,
+    ValueParseError,
 }
 
 impl From<RuntimeError> for Error {
@@ -52,19 +53,19 @@ macro_rules! rt_error {
         return ::std::result::Result::Err($crate::error::RuntimeError::InvalidCast(
             $crate::Value::from($a),
             ::std::stringify!($t),
-        ))
+        ).into())
     };
     (op: $a:expr => [$op:ident]) => {
         return ::std::result::Result::Err($crate::error::RuntimeError::InvalidOperation(
             ::std::vec![$crate::Value::from($a)],
             ::std::stringify!($op),
-        ))
+        ).into())
     };
     (op: $a:expr, $b:expr => [$op:ident]) => {
         return ::std::result::Result::Err($crate::error::RuntimeError::InvalidOperation(
             ::std::vec![$crate::Value::from($a), $crate::Value::from($b)],
             ::std::stringify!($op),
-        ))
+        ).into())
     };
 }
 

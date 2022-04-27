@@ -41,8 +41,9 @@ impl FromStr for Nullary {
 }
 
 impl Operator for Nullary {
-    fn run(&self, stack: &mut Stack) -> RuntimeResult<()> {
-        self.0(stack)
+    fn run(&self, stack: &mut Stack) -> Result<(), crate::Error> {
+        self.0(stack)?;
+        Ok(())
     }
 
     fn as_str(&self) -> &str {

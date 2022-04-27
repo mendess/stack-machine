@@ -1,12 +1,12 @@
-use crate::{error::both::*, ops::Operator, util::str_ext::StrExt};
+use crate::{error::both::*, ops::Operator, run_with_input, util::str_ext::StrExt};
 use itertools::Itertools;
 use std::{
     cmp::{self, Ordering},
     convert::TryInto,
     fmt::{self, Write},
+    io::BufRead,
     ops,
     rc::Rc,
-    str::FromStr,
 };
 
 #[derive(Clone, Debug)]
@@ -326,50 +326,27 @@ impl_bit!(ops::BitAnd, bitand);
 impl_bit!(ops::BitOr, bitor);
 impl_bit!(ops::BitXor, bitxor);
 
-use either::{Either, Left, Right};
-
-#[derive(Debug, Default, Clone)]
-pub struct ExprVec(pub Vec<Rc<dyn Operator>>);
-#[derive(Debug, Clone)]
-pub struct ProtoValue(pub Either<Value, ExprVec>);
-
-impl Default for ProtoValue {
-    fn default() -> Self {
-        Self(Left(Value::default()))
-    }
-}
-
-impl FromStr for ProtoValue {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        None.or_else(|| {
-            matches!(s.as_bytes(), [b'a'..=b'z'])
-                .then(|| s.parse().map(Value::Char).map(Left).ok())
-                .flatten()
-        })
-        .or_else(|| s.parse().map(Value::Integer).map(Left).ok())
-        .or_else(|| s.parse().map(Value::Float).map(Left).ok())
-        .or_else(|| Value::parse_array(s).map(Right))
-        .or_else(|| Value::parse_string(s).map(Left))
-        .or_else(|| Value::parse_block(s).map(Left))
-        .ok_or(())
-        .map(Self)
-    }
-}
-
 impl Value {
-    fn parse_array(s: &str) -> Option<ExprVec> {
+    pub fn from_str(s: &str, i: &mut dyn BufRead) -> Result<Self, crate::Error> {
+        let value = s
+            .parse()
+            .map(Value::Integer)
+            .ok()
+            .or_else(|| s.parse().map(Value::Float).ok())
+            .or_else(|| Value::parse_string(s))
+            .or_else(|| Value::parse_block(s));
+        match value {
+            Some(v) => Ok(v),
+            None => Value::parse_array(s, i),
+        }
+    }
+
+    fn parse_array(s: &str, i: &mut dyn BufRead) -> Result<Self, crate::Error> {
         if s.starts_with('[') && s.ends_with(']') {
-            Some(ExprVec(
-                s.trim_matches(&['[', ']'][..])
-                    .split_tokens()
-                    .map(str::parse::<Box<dyn Operator>>)
-                    .map(Result::ok)
-                    .map(|x| x.map(Rc::from))
-                    .collect::<Option<_>>()?,
-            ))
+            let array = run_with_input(s.trim_matches(&['[', ']'][..]), i)?;
+            Ok(Value::Array(array))
         } else {
-            None
+            Err(crate::Error::Runtime(RuntimeError::ValueParseError))
         }
     }
 

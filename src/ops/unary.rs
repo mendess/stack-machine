@@ -13,8 +13,8 @@ pub struct UnaryOp(Enum, String);
 
 enum Enum {
     Transform(fn(Value) -> RuntimeResult<Value>),
-    TransformStack(fn(Value, &mut Stack) -> RuntimeResult<Value>),
-    TransformStar(fn(Value, &mut Stack) -> RuntimeResult<Vec<Value>>),
+    TransformStack(fn(Value, &mut Stack) -> Result<Value, crate::Error>),
+    TransformStar(fn(Value, &mut Stack) -> Result<Vec<Value>, crate::Error>),
     Borrow(fn(&Value)),
     Calculate(fn(&Value) -> RuntimeResult<Value>),
 }
@@ -119,18 +119,29 @@ impl FromStr for UnaryOp {
 }
 
 impl Operator for UnaryOp {
-    fn run(&self, stack: &mut Stack) -> RuntimeResult<()> {
+    fn run(&self, stack: &mut Stack) -> Result<(), crate::Error> {
         match self.0 {
-            Enum::Transform(f) => stack.pop().and_then(f).map(|v| stack.push(v)),
-            Enum::TransformStack(f) => {
-                stack.pop().and_then(|v| f(v, stack)).map(|v| stack.push(v))
-            }
+            Enum::Transform(f) => stack
+                .pop()
+                .and_then(f)
+                .map(|v| stack.push(v))
+                .map_err(crate::Error::from),
+            Enum::TransformStack(f) => stack
+                .pop()
+                .map_err(crate::Error::from)
+                .and_then(|v| f(v, stack))
+                .map(|v| stack.push(v)),
             Enum::TransformStar(f) => stack
                 .pop()
+                .map_err(crate::Error::from)
                 .and_then(|v| f(v, stack))
                 .map(|v| v.into_iter().for_each(|v| stack.push(v))),
-            Enum::Borrow(f) => stack.top().map(f),
-            Enum::Calculate(f) => stack.top().and_then(f).map(|v| stack.push(v)),
+            Enum::Borrow(f) => stack.top().map(f).map_err(crate::Error::from),
+            Enum::Calculate(f) => stack
+                .top()
+                .and_then(f)
+                .map(|v| stack.push(v))
+                .map_err(crate::Error::from),
         }
     }
 

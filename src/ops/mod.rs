@@ -5,7 +5,7 @@ mod ternary;
 mod unary;
 
 use crate::{
-    error::{runtime::*, Error, SyntaxError},
+    error::{Error, SyntaxError},
     stack::{Stack, Value},
 };
 use std::{
@@ -29,18 +29,18 @@ impl FromStr for Box<dyn Operator> {
             .map(cast_box)
             .or_else(|_| s.parse::<UnaryOp>().map(cast_box))
             .or_else(|_| s.parse::<Nullary>().map(cast_box))
-            .or_else(|_| s.parse::<StackOp>().map(cast_box))
             .or_else(|_| s.parse::<Ternary>().map(cast_box))
+            .or_else(|_| s.parse::<StackOp>().map(cast_box))
             .map_err(|_| s.into())
     }
 }
 
 pub trait Operator: Display + Debug {
-    fn run_mut(&mut self, stack: &mut Stack) -> Result<(), RuntimeError> {
+    fn run_mut(&mut self, stack: &mut Stack) -> Result<(), crate::Error> {
         self.run(stack)
     }
 
-    fn run(&self, stack: &mut Stack) -> Result<(), RuntimeError>;
+    fn run(&self, stack: &mut Stack) -> Result<(), crate::Error>;
 
     fn as_str(&self) -> &str;
 }
@@ -54,34 +54,35 @@ where
         if cfg!(debug_assertions) {
             println!("{:?} apply `{}`", stack.as_slice(), op.as_str());
         }
-        Ok(op.run_mut(stack)?)
+        op.run_mut(stack)
     })
 }
 
-pub fn execute<I, O>(i: I, stack: &'_ mut Stack) -> RuntimeResult<()>
+pub fn execute<I, O>(i: I, stack: &'_ mut Stack) -> Result<(), crate::Error>
 where
     I: IntoIterator<Item = O>,
     O: AsRef<dyn Operator>,
 {
-    i.into_iter().try_for_each::<_, RuntimeResult<_>>(|op| {
-        if cfg!(debug_assertions) {
-            println!("{:?} apply `{}`", stack.as_slice(), op.as_ref().as_str());
-        }
-        op.as_ref().run(stack)?;
-        Ok(())
-    })?;
+    i.into_iter()
+        .try_for_each::<_, Result<(), crate::Error>>(|op| {
+            if cfg!(debug_assertions) {
+                println!("{:?} apply `{}`", stack.as_slice(), op.as_ref().as_str());
+            }
+            op.as_ref().run(stack)?;
+            Ok(())
+        })?;
     if cfg!(debug_assertions) {
         println!("END {:?}", stack.as_slice());
     }
     Ok(())
 }
 
-pub fn calculate<I, O>(input: Value, i: I, stack: &mut Stack) -> RuntimeResult<Value>
+pub fn calculate<I, O>(input: Value, i: I, stack: &mut Stack) -> Result<Value, crate::Error>
 where
     I: IntoIterator<Item = O>,
     O: AsRef<dyn Operator>,
 {
     stack.push(input);
     execute(i, stack)?;
-    stack.take_as_value()
+    Ok(stack.take_as_value()?)
 }

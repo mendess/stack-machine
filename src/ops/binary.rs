@@ -15,14 +15,14 @@ use std::{
 
 #[derive(Clone)]
 /* Copy, */
-pub struct BinaryOp(fn(Value, Value, &mut Stack) -> RuntimeResult<Value>, String);
+pub struct BinaryOp(fn(Value, Value, &mut Stack) -> Result<Value, crate::Error>, String);
 
 impl FromStr for BinaryOp {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, ()> {
-        let op: fn(Value, Value, &mut Stack) -> RuntimeResult<Value> = match s {
-            "+" => |a, b, _| Value::add(a, b),
-            "-" => |a, b, _| Value::sub(a, b),
+        let op: fn(Value, Value, &mut Stack) -> Result<Value, crate::Error> = match s {
+            "+" => |a, b, _| Value::add(a, b).map_err(crate::Error::from),
+            "-" => |a, b, _| Value::sub(a, b).map_err(crate::Error::from),
             "*" => |a, b, s| match (a, b) {
                 (Value::Array(a), Value::Block(b)) => {
                     let mut temp_stack = Stack::with_input(s.input());
@@ -33,12 +33,12 @@ impl FromStr for BinaryOp {
                         calculate(v, &b, &mut temp_stack)
                     })
                 }
-                (a, b) => Value::mul(a, b),
+                (a, b) => Value::mul(a, b).map_err(crate::Error::from),
             },
-            "/" => |a, b, _| Value::div(a, b),
-            "&" => |a, b, _| Value::bitand(a, b),
-            "|" => |a, b, _| Value::bitor(a, b),
-            "^" => |a, b, _| Value::bitxor(a, b),
+            "/" => |a, b, _| Value::div(a, b).map_err(crate::Error::from),
+            "&" => |a, b, _| Value::bitand(a, b).map_err(crate::Error::from),
+            "|" => |a, b, _| Value::bitor(a, b).map_err(crate::Error::from),
+            "^" => |a, b, _| Value::bitxor(a, b).map_err(crate::Error::from),
             "%" => |a, b, s| match (a, b) {
                 (Value::Array(mut a), Value::Block(b)) => {
                     let mut temp_stack = Stack::with_input(s.input());
@@ -52,7 +52,7 @@ impl FromStr for BinaryOp {
                     Ok(Value::Str(
                         string
                             .chars()
-                            .map(|c| -> RuntimeResult<char> {
+                            .map(|c| -> Result<char, crate::Error> {
                                 match calculate(Value::Char(c), &b, &mut temp_stack)? {
                                     Value::Char(c) if temp_stack.is_empty() => Ok(c),
                                     x => crate::rt_error!(convert: x, char),
@@ -61,12 +61,12 @@ impl FromStr for BinaryOp {
                             .collect::<Result<_, _>>()?,
                     ))
                 }
-                (a, b) => Value::rem(a, b),
+                (a, b) => Value::rem(a, b).map_err(crate::Error::from),
             },
             "e&" => |a: Value, b, _| Ok(a.and(b)),
             "e|" => |a: Value, b, _| Ok(a.or(b)),
-            "e<" => |a, b, _| Value::min(a, b),
-            "e>" => |a, b, _| Value::max(a, b),
+            "e<" => |a, b, _| Value::min(a, b).map_err(crate::Error::from),
+            "e>" => |a, b, _| Value::max(a, b).map_err(crate::Error::from),
             ">" => |a, b, _| match (a, b) {
                 (Value::Array(mut arr), Value::Integer(i)) => {
                     if i > arr.len() as i64 || i < 0 {
@@ -126,7 +126,7 @@ impl FromStr for BinaryOp {
                 }
                 (a, b) => Ok((a.partial_cmp(b) == Some(Ordering::Equal)).into()),
             },
-            "#" => |a: Value, b, _| a.pow(b),
+            "#" => |a: Value, b, _| a.pow(b).map_err(crate::Error::from),
             _ => return Err(()),
         };
         Ok(Self(op, s.into()))
@@ -134,7 +134,7 @@ impl FromStr for BinaryOp {
 }
 
 impl Operator for BinaryOp {
-    fn run(&self, stack: &mut Stack) -> Result<(), RuntimeError> {
+    fn run(&self, stack: &mut Stack) -> Result<(), crate::Error> {
         let snd = stack.pop()?;
         let fst = stack.pop()?;
         let r = self.0(fst, snd, stack)?;

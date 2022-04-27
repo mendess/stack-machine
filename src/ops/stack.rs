@@ -2,12 +2,8 @@ use super::Operator;
 use crate::{
     error::runtime::*,
     ops::{calculate, execute},
-    stack::{
-        value::{ExprVec, ProtoValue},
-        Stack, Value,
-    },
+    stack::{Stack, Value},
 };
-use either::{Left, Right};
 use std::{
     fmt::{self, Debug, Display},
     mem::take,
@@ -17,8 +13,8 @@ use std::{
 pub struct StackOp(Enum, String);
 
 enum Enum {
-    Simple(fn(&mut Stack<'_>) -> RuntimeResult<()>),
-    Push(ProtoValue),
+    Simple(fn(&mut Stack<'_>) -> Result<(), crate::Error>),
+    Push,
     Nth(usize, fn(&mut Stack<'_>, usize) -> RuntimeResult<()>),
     VarAccess(char, fn(&mut Stack<'_>, char) -> RuntimeResult<()>),
 }
@@ -27,18 +23,18 @@ impl FromStr for StackOp {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let e = match s.as_bytes() {
-            b";" => Ok(Enum::Simple(|s| s.pop().map(|_| ()))),
+            b";" => Ok(Enum::Simple(|s| { s.pop()?; Ok(()) })),
             b"\\" => Ok(Enum::Simple(|s| {
                 let len = s.len();
                 s.get_mut((len - 2)..len)
                     .map(|slice| slice.rotate_left(1))
-                    .ok_or(RuntimeError::StackEmpty)
+                    .ok_or(crate::Error::Runtime(RuntimeError::StackEmpty))
             })),
             b"@" => Ok(Enum::Simple(|s| {
                 let len = s.len();
                 s.get_mut((len - 3)..len)
                     .map(|slice| slice.rotate_left(1))
-                    .ok_or(RuntimeError::StackEmpty)
+                    .ok_or(crate::Error::Runtime(RuntimeError::StackEmpty))
             })),
             b"(" => Ok(Enum::Simple(|s| {
                 let top = match s.pop()? {
@@ -97,13 +93,13 @@ impl FromStr for StackOp {
                 let top = s.pop()?;
                 if let Value::Integer(i) = top {
                     if i < 0 {
-                        return Err(RuntimeError::OutOfBounds(s.len(), i));
+                        return Err(RuntimeError::OutOfBounds(s.len(), i).into());
                     }
                     if let Some(v) = s.get_from_end(i as usize).cloned() {
                         s.push(v);
                         Ok(())
                     } else {
-                        Err(RuntimeError::OutOfBounds(s.len(), i))
+                        Err(RuntimeError::OutOfBounds(s.len(), i).into())
                     }
                 } else if let (Value::Array(mut a), Value::Block(b)) = (s.pop()?, &top) {
                     {
@@ -134,51 +130,39 @@ impl FromStr for StackOp {
                     Err(())
                 }
             }
-            _ => Ok(Enum::Push(s.parse()?)),
+            _ => Ok(Enum::Push),
         };
         e.map(|e| Self(e, s.into()))
     }
 }
 
-fn generate_protovalue(stack: &mut Stack, v: ProtoValue) -> RuntimeResult<Value> {
-    match v.0 {
-        Left(v) => Ok(v),
-        Right(ExprVec(v)) => Ok(Value::Array(
-            v.into_iter()
-                .map(|op| {
-                    execute(std::iter::once(op), stack)?;
-                    stack.pop()
-                })
-                .collect::<Result<Vec<_>, _>>()?,
-        )),
-    }
-}
-
 impl Operator for StackOp {
-    fn run(&self, stack: &mut Stack) -> Result<(), RuntimeError> {
+    fn run(&self, stack: &mut Stack) -> Result<(), crate::Error> {
         match &self.0 {
             Enum::Simple(f) => f(stack),
-            Enum::Push(v) => {
-                let v = generate_protovalue(stack, v.clone())?;
+            Enum::Push => {
+                let v = Value::from_str(&self.1, stack.input())?;
                 stack.push(v);
                 Ok(())
             }
-            Enum::VarAccess(v, f) => f(stack, *v),
-            Enum::Nth(n, f) => f(stack, *n),
+            Enum::VarAccess(v, f) => f(stack, *v).map_err(crate::Error::from),
+            Enum::Nth(n, f) => f(stack, *n).map_err(crate::Error::from),
         }
+        .map_err(Into::into)
     }
 
-    fn run_mut(&mut self, stack: &mut Stack) -> Result<(), RuntimeError> {
+    fn run_mut(&mut self, stack: &mut Stack) -> Result<(), crate::Error> {
         match &mut self.0 {
             Enum::Simple(f) => f(stack),
-            Enum::Push(v) => {
-                let v = generate_protovalue(stack, take(v))?;
+            Enum::Push => {
+                let v = Value::from_str(&self.1, stack.input())?;
                 stack.push(v);
                 Ok(())
             }
-            Enum::VarAccess(v, f) => f(stack, *v),
-            Enum::Nth(n, f) => f(stack, *n),
+            Enum::VarAccess(v, f) => f(stack, *v).map_err(crate::Error::from),
+            Enum::Nth(n, f) => f(stack, *n).map_err(crate::Error::from),
         }
+        .map_err(Into::into)
     }
 
     fn as_str(&self) -> &str {
