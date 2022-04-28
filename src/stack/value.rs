@@ -378,10 +378,10 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Char(c) => write!(f, "c({})", c),
+            Value::Char(c) => write!(f, "c({:?})", c),
             Value::Integer(i) => write!(f, "i({})", i),
             Value::Float(d) => write!(f, "f({})", d),
-            Value::Str(s) => write!(f, "s({})", s),
+            Value::Str(s) => write!(f, "s({:?})", s),
             Value::Array(a) => write!(f, "a([{}])", a.iter().format(",")),
             Value::Block(b) => write!(f, "b([{}])", b.iter().format(",")),
         }
