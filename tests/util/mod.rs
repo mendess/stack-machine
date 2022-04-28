@@ -72,5 +72,7 @@ macro_rules! make_test {
 
 #[macro_export]
 macro_rules! v {
-    ($v:expr) => { ::stack_machine::Value::from($v) }
+    ($v:expr) => {
+        ::stack_machine::Value::from($v)
+    };
 }

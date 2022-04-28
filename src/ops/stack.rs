@@ -23,7 +23,10 @@ impl FromStr for StackOp {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let e = match s.as_bytes() {
-            b";" => Ok(Enum::Simple(|s| { s.pop()?; Ok(()) })),
+            b";" => Ok(Enum::Simple(|s| {
+                s.pop()?;
+                Ok(())
+            })),
             b"\\" => Ok(Enum::Simple(|s| {
                 let len = s.len();
                 s.get_mut((len - 2)..len)

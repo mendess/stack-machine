@@ -11,4 +11,3 @@ make_test!(eq_diff  : "3 5 = ! 7 2 >" => @[1,1]);
 make_test!(lt_gt    : "1 2 < 2 1 >"   => @[1,1]);
 make_test!(ltlt     : "3 5 2 e< e<"   => 2);
 make_test!(vars     : "A B * :T T"    => @[110,110]);
-

@@ -15,7 +15,10 @@ use std::{
 
 #[derive(Clone)]
 /* Copy, */
-pub struct BinaryOp(fn(Value, Value, &mut Stack) -> Result<Value, crate::Error>, String);
+pub struct BinaryOp(
+    fn(Value, Value, &mut Stack) -> Result<Value, crate::Error>,
+    String,
+);
 
 impl FromStr for BinaryOp {
     type Err = ();
