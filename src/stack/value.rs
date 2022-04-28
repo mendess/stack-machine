@@ -346,7 +346,9 @@ impl Value {
             let array = run_with_input(s.trim_matches(&['[', ']'][..]), i)?;
             Ok(Value::Array(array))
         } else {
-            Err(crate::Error::Runtime(RuntimeError::ValueParseError))
+            Err(crate::Error::Runtime(RuntimeError::InvalidValueString(
+                s.into(),
+            )))
         }
     }
 

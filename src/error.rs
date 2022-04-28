@@ -30,7 +30,7 @@ pub enum RuntimeError {
     InvalidCast(Value, &'static str),
     OutOfBounds(usize, i64),
     FoldingEmptyArray,
-    ValueParseError,
+    InvalidValueString(String),
 }
 
 impl From<RuntimeError> for Error {
@@ -50,22 +50,31 @@ pub type RuntimeResult<T> = Result<T, RuntimeError>;
 #[macro_export]
 macro_rules! rt_error {
     (convert: $a:expr, $t:ty) => {
-        return ::std::result::Result::Err($crate::error::RuntimeError::InvalidCast(
-            $crate::Value::from($a),
-            ::std::stringify!($t),
-        ).into())
+        return ::std::result::Result::Err(
+            $crate::error::RuntimeError::InvalidCast(
+                $crate::Value::from($a),
+                ::std::stringify!($t),
+            )
+            .into(),
+        )
     };
     (op: $a:expr => [$op:ident]) => {
-        return ::std::result::Result::Err($crate::error::RuntimeError::InvalidOperation(
-            ::std::vec![$crate::Value::from($a)],
-            ::std::stringify!($op),
-        ).into())
+        return ::std::result::Result::Err(
+            $crate::error::RuntimeError::InvalidOperation(
+                ::std::vec![$crate::Value::from($a)],
+                ::std::stringify!($op),
+            )
+            .into(),
+        )
     };
     (op: $a:expr, $b:expr => [$op:ident]) => {
-        return ::std::result::Result::Err($crate::error::RuntimeError::InvalidOperation(
-            ::std::vec![$crate::Value::from($a), $crate::Value::from($b)],
-            ::std::stringify!($op),
-        ).into())
+        return ::std::result::Result::Err(
+            $crate::error::RuntimeError::InvalidOperation(
+                ::std::vec![$crate::Value::from($a), $crate::Value::from($b)],
+                ::std::stringify!($op),
+            )
+            .into(),
+        )
     };
 }
 
