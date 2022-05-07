@@ -31,7 +31,7 @@ macro_rules! make_test {
                 $stdin
             );
             $crate::assert_that!(
-                ::stack_machine::run_with_input($input, Cursor::new(String::from($stdin)))
+                ::stack_machine::run_with_input($input, &mut Cursor::new(String::from($stdin)))
                     .expect(&msg)
                     .pop(),
                 ::std::option::Option::<_>::Some(::stack_machine::Value::from($exp)),
