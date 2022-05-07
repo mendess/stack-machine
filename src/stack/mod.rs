@@ -1,14 +1,7 @@
 pub mod value;
 
 use crate::error::runtime::*;
-use std::{
-    cell::RefCell,
-    fmt,
-    io::{self, BufRead /*Write*/, BufReader},
-    ops,
-    rc::Rc,
-    slice::SliceIndex,
-};
+use std::{cell::RefCell, fmt, io::BufRead, ops, rc::Rc, slice::SliceIndex};
 pub use value::Value;
 
 #[derive(Debug)]
@@ -46,28 +39,15 @@ impl ops::IndexMut<char> for Variables {
 }
 
 pub struct Stack<'i> {
-    io_input: Box<dyn BufRead + 'i>,
+    io_input: &'i mut dyn BufRead,
     variables: Rc<RefCell<Variables>>,
     s: Vec<Value>,
 }
 
-impl Default for Stack<'static> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Stack<'static> {
-    pub fn new() -> Self {
-        Self::with_input(BufReader::new(io::stdin()))
-    }
-}
-
 impl<'i> Stack<'i> {
-    pub fn with_input<I: BufRead + 'i>(i: I) -> Self {
+    pub fn with_input(io_input: &'i mut dyn BufRead) -> Self {
         Self {
-            io_input: Box::new(i),
-            // io_output: Box::new(io::stdout()),
+            io_input,
             variables: Default::default(),
             s: Default::default(),
         }
@@ -75,7 +55,7 @@ impl<'i> Stack<'i> {
 
     pub fn sub_stack(&mut self) -> Stack<'_> {
         Stack {
-            io_input: Box::new(&mut self.io_input),
+            io_input: &mut self.io_input,
             variables: self.variables.clone(),
             s: Default::default(),
         }
@@ -92,10 +72,6 @@ impl<'i> Stack<'i> {
     pub fn top(&self) -> RuntimeResult<&Value> {
         self.s.last().ok_or(RuntimeError::StackEmpty)
     }
-
-    // pub fn top_mut(&mut self) -> Option<&mut Value> {
-    //     self.s.last_mut()
-    // }
 
     pub fn get<I>(&self, index: I) -> Option<&<I as SliceIndex<[Value]>>::Output>
     where
@@ -138,10 +114,6 @@ impl<'i> Stack<'i> {
     pub fn input(&mut self) -> &mut dyn BufRead {
         &mut *self.io_input
     }
-
-    // pub fn output(&mut self) -> &mut dyn Write {
-    //     &mut *self.io_output
-    // }
 
     pub fn take_as_value(&mut self) -> RuntimeResult<Value> {
         match self.s.len() {

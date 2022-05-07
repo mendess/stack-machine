@@ -84,7 +84,7 @@ async fn run(
 ) -> impl Responder {
     s.input.retain(|c| c != '\r');
 
-    let result = std::panic::catch_unwind(|| run_with_input(&s.s, Cursor::new(&s.input)));
+    let result = std::panic::catch_unwind(|| run_with_input(&s.s, &mut Cursor::new(&s.input)));
 
     if let Some(ip) = req.peer_addr().map(|x| x.ip()) {
         if let Err(e) = tx

@@ -2,7 +2,11 @@
 
 use stack_machine::{run, Repl};
 
-use std::{env::args, fs, io};
+use std::{
+    env::args,
+    fs,
+    io::{self, BufReader},
+};
 
 fn main() -> io::Result<()> {
     if let Some(file) = args().nth(1) {
@@ -11,7 +15,8 @@ fn main() -> io::Result<()> {
     } else {
         let mut s = String::new();
         let stdin = io::stdin();
-        let mut repl = Repl::new();
+        let mut input = BufReader::new(io::stdin());
+        let mut repl = Repl::new(&mut input);
         while {
             s.clear();
             stdin.read_line(&mut s)? > 0

@@ -11,14 +11,13 @@ pub use stack::Value;
 use std::io::{self, BufRead, BufReader};
 use util::str_ext::StrExt;
 
-#[derive(Default)]
-pub struct Repl {
-    stack: stack::Stack<'static>,
+pub struct Repl<'i> {
+    stack: stack::Stack<'i>,
 }
 
-impl Repl {
-    pub fn new() -> Self {
-        Default::default()
+impl<'i> Repl<'i> {
+    pub fn new<I: BufRead>(i: &'i mut I) -> Self {
+        Self { stack: Stack::with_input(i) }
     }
 
     pub fn next_line(&mut self, s: &str) {
@@ -33,7 +32,7 @@ impl Repl {
 }
 
 pub fn run(s: &str) -> Result<Vec<Value>, error::Error> {
-    run_with_input(s, BufReader::new(io::stdin()))
+    run_with_input(s, &mut BufReader::new(io::stdin()))
 }
 
 pub fn run_on(s: &str, stack: &mut Stack<'_>) -> Result<Vec<Value>, error::Error> {
@@ -42,7 +41,7 @@ pub fn run_on(s: &str, stack: &mut Stack<'_>) -> Result<Vec<Value>, error::Error
     Ok(stack.into_vec())
 }
 
-pub fn run_with_input<'i, I: BufRead + 'i>(s: &str, i: I) -> Result<Vec<Value>, error::Error> {
+pub fn run_with_input(s: &str, i: &mut dyn BufRead) -> Result<Vec<Value>, error::Error> {
     let mut stack = stack::Stack::with_input(i);
     ops::parse_and_execute(s.split_tokens(), &mut stack)?;
     Ok(stack.into_vec())
