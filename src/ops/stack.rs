@@ -144,7 +144,7 @@ impl Operator for StackOp {
         match &self.0 {
             Enum::Simple(f) => f(stack),
             Enum::Push => {
-                let v = Value::from_str(&self.1, stack.input())?;
+                let v = Value::from_str(&self.1, stack)?;
                 stack.push(v);
                 Ok(())
             }
@@ -158,7 +158,7 @@ impl Operator for StackOp {
         match &mut self.0 {
             Enum::Simple(f) => f(stack),
             Enum::Push => {
-                let v = Value::from_str(&self.1, stack.input())?;
+                let v = Value::from_str(&self.1, stack)?;
                 stack.push(v);
                 Ok(())
             }

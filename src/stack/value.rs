@@ -1,13 +1,14 @@
-use crate::{error::both::*, ops::Operator, run_with_input, util::str_ext::StrExt};
+use crate::{error::both::*, ops::Operator, util::str_ext::StrExt, run_on};
 use itertools::Itertools;
 use std::{
     cmp::{self, Ordering},
     convert::TryInto,
     fmt::{self, Write},
-    io::BufRead,
     ops,
     rc::Rc,
 };
+
+use super::Stack;
 
 #[derive(Clone, Debug)]
 pub enum Value {
@@ -327,7 +328,7 @@ impl_bit!(ops::BitOr, bitor);
 impl_bit!(ops::BitXor, bitxor);
 
 impl Value {
-    pub fn from_str(s: &str, i: &mut dyn BufRead) -> Result<Self, crate::Error> {
+    pub fn from_str(s: &str, i: &mut Stack<'_>) -> Result<Self, crate::Error> {
         let value = s
             .parse()
             .map(Value::Integer)
@@ -341,9 +342,10 @@ impl Value {
         }
     }
 
-    fn parse_array(s: &str, i: &mut dyn BufRead) -> Result<Self, crate::Error> {
+    fn parse_array(s: &str, stack: &mut Stack<'_>) -> Result<Self, crate::Error> {
+        stack.sub_stack();
         if s.starts_with('[') && s.ends_with(']') {
-            let array = run_with_input(s.trim_matches(&['[', ']'][..]), i)?;
+            let array = run_on(s.trim_matches(&['[', ']'][..]), stack)?;
             Ok(Value::Array(array))
         } else {
             Err(crate::Error::Runtime(RuntimeError::InvalidValueString(

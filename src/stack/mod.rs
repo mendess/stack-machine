@@ -2,31 +2,53 @@ pub mod value;
 
 use crate::error::runtime::*;
 use std::{
+    cell::RefCell,
     fmt,
     io::{self, BufRead /*Write*/, BufReader},
     ops,
+    rc::Rc,
     slice::SliceIndex,
 };
 pub use value::Value;
 
-pub struct Stack<'i> {
-    io_input: Box<dyn BufRead + 'i>,
-    // io_output: Box<dyn Write>,
-    variables: [Value; (b'Z' - b'A') as usize + 1],
-    s: Vec<Value>,
+#[derive(Debug)]
+pub struct Variables([Value; (b'Z' - b'A') as usize + 1]);
+
+impl Default for Variables {
+    fn default() -> Self {
+        let mut vs = Self(Default::default());
+        vs['A'] = Value::Integer(10);
+        vs['B'] = Value::Integer(11);
+        vs['C'] = Value::Integer(12);
+        vs['D'] = Value::Integer(13);
+        vs['E'] = Value::Integer(14);
+        vs['F'] = Value::Integer(15);
+        vs['N'] = Value::Char('\n');
+        vs['S'] = Value::Char(' ');
+        vs['X'] = Value::Integer(0);
+        vs['Y'] = Value::Integer(1);
+        vs['Z'] = Value::Integer(2);
+        vs
+    }
 }
 
-impl ops::Index<char> for Stack<'_> {
+impl ops::Index<char> for Variables {
     type Output = Value;
     fn index(&self, name: char) -> &Self::Output {
-        &self.variables[name as usize - b'A' as usize]
+        &self.0[name as usize - b'A' as usize]
     }
 }
 
-impl ops::IndexMut<char> for Stack<'_> {
+impl ops::IndexMut<char> for Variables {
     fn index_mut(&mut self, name: char) -> &mut Self::Output {
-        &mut self.variables[name as usize - b'A' as usize]
+        &mut self.0[name as usize - b'A' as usize]
     }
+}
+
+pub struct Stack<'i> {
+    io_input: Box<dyn BufRead + 'i>,
+    variables: Rc<RefCell<Variables>>,
+    s: Vec<Value>,
 }
 
 impl Default for Stack<'static> {
@@ -43,25 +65,20 @@ impl Stack<'static> {
 
 impl<'i> Stack<'i> {
     pub fn with_input<I: BufRead + 'i>(i: I) -> Self {
-        let variables = Default::default();
-        let mut s = Self {
+        Self {
             io_input: Box::new(i),
             // io_output: Box::new(io::stdout()),
-            variables,
+            variables: Default::default(),
             s: Default::default(),
-        };
-        s['A'] = Value::Integer(10);
-        s['B'] = Value::Integer(11);
-        s['C'] = Value::Integer(12);
-        s['D'] = Value::Integer(13);
-        s['E'] = Value::Integer(14);
-        s['F'] = Value::Integer(15);
-        s['N'] = Value::Char('\n');
-        s['S'] = Value::Char(' ');
-        s['X'] = Value::Integer(0);
-        s['Y'] = Value::Integer(1);
-        s['Z'] = Value::Integer(2);
-        s
+        }
+    }
+
+    pub fn sub_stack(&mut self) -> Stack<'_> {
+        Stack {
+            io_input: Box::new(&mut self.io_input),
+            variables: self.variables.clone(),
+            s: Default::default(),
+        }
     }
 
     pub fn push(&mut self, v: Value) {
@@ -135,11 +152,11 @@ impl<'i> Stack<'i> {
     }
 
     pub fn push_var(&mut self, var: char) {
-        self.s.push(self[var].clone());
+        self.s.push(self.variables.borrow()[var].clone());
     }
 
     pub fn pop_var(&mut self, var: char) -> RuntimeResult<()> {
-        self[var] = self.top().map(Clone::clone)?;
+        self.variables.borrow_mut()[var] = self.top().map(Clone::clone)?;
         Ok(())
     }
 }
