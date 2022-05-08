@@ -53,6 +53,18 @@ impl FromStr for StackOp {
                             Ok(v)
                         }
                     }
+                    Value::Str(mut st) => {
+                        if st.is_empty() {
+                            Err(RuntimeError::InvalidOperation(
+                                vec![st.into()],
+                                "remove head",
+                            ))
+                        } else {
+                            let v = st.remove(0);
+                            s.push(st.into());
+                            Ok(v.into())
+                        }
+                    }
                     x => x - Value::Integer(1),
                 };
                 s.push(top?);
@@ -66,7 +78,18 @@ impl FromStr for StackOp {
                             Ok(v)
                         } else {
                             Err(RuntimeError::InvalidOperation(
-                                vec![Value::Array(a)],
+                                vec![a.into()],
+                                "remove last",
+                            ))
+                        }
+                    }
+                    Value::Str(mut st) => {
+                        if let Some(v) = st.pop() {
+                            s.push(st.into());
+                            Ok(v.into())
+                        } else {
+                            Err(RuntimeError::InvalidOperation(
+                                vec![st.into()],
                                 "remove last",
                             ))
                         }
