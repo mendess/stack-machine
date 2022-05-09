@@ -31,6 +31,7 @@ pub enum RuntimeError {
     OutOfBounds(usize, i64),
     FoldingEmptyArray,
     InvalidValueString(String),
+    IterationMax(usize),
 }
 
 impl From<RuntimeError> for Error {

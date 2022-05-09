@@ -102,8 +102,13 @@ impl FromStr for StackOp {
             b"w" => Ok(Enum::Simple(|s| {
                 let v = s.pop()?;
                 if let Value::Block(b) = v {
+                    let mut i = 0;
                     while s.top()?.into() {
                         execute(&b, s)?;
+                        i += 1;
+                        if i >= 10_000 {
+                            return Err(RuntimeError::IterationMax(i).into())
+                        }
                     }
                     Ok(())
                 } else {

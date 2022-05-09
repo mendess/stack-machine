@@ -55,7 +55,11 @@ where
             println!("{:?} apply `{}`", stack.as_slice(), op.as_str());
         }
         op.run_mut(stack)
-    })
+    })?;
+    if cfg!(debug_assertions) {
+        println!("END {:?}", stack.as_slice());
+    }
+    Ok(())
 }
 
 pub fn execute<I, O>(i: I, stack: &'_ mut Stack) -> Result<(), crate::Error>
@@ -71,9 +75,6 @@ where
             op.as_ref().run(stack)?;
             Ok(())
         })?;
-    if cfg!(debug_assertions) {
-        println!("END {:?}", stack.as_slice());
-    }
     Ok(())
 }
 
