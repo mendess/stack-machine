@@ -55,8 +55,9 @@ impl FromStr for BinaryOp {
                     Ok(Value::Str(
                         string
                             .chars()
+                            .map(Value::Char)
                             .map(|c| -> Result<char, crate::Error> {
-                                match calculate(Value::Char(c), &b, &mut temp_stack)? {
+                                match calculate(c, &b, &mut temp_stack)? {
                                     Value::Char(c) if temp_stack.is_empty() => Ok(c),
                                     x => crate::rt_error!(convert: x, char),
                                 }
