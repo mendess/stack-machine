@@ -343,9 +343,8 @@ impl Value {
     }
 
     fn parse_array(s: &str, stack: &mut Stack<'_>) -> Result<Self, crate::Error> {
-        stack.sub_stack();
         if s.starts_with('[') && s.ends_with(']') {
-            let array = run_on(s.trim_matches(&['[', ']'][..]), stack)?;
+            let array = run_on(s.trim_matches(&['[', ']'][..]), stack.sub_stack())?;
             Ok(Value::Array(array))
         } else {
             Err(crate::Error::Runtime(RuntimeError::InvalidValueString(

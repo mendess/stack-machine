@@ -105,12 +105,13 @@ impl FromStr for StackOp {
                     let mut i = 0;
                     while {
                         execute(&b, s)?;
+                        s.pop()?.into()
+                    } {
                         i += 1;
                         if i >= 10_000 {
                             return Err(RuntimeError::IterationMax(i).into());
                         }
-                        s.pop()?.into()
-                    } {}
+                    }
                     Ok(())
                 } else {
                     crate::rt_error!(op: v => [while])

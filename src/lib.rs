@@ -35,8 +35,7 @@ pub fn run(s: &str) -> Result<Vec<Value>, error::Error> {
     run_with_input(s, &mut BufReader::new(io::stdin()))
 }
 
-pub fn run_on(s: &str, stack: &mut Stack<'_>) -> Result<Vec<Value>, error::Error> {
-    let mut stack = stack.sub_stack();
+pub fn run_on(s: &str, mut stack: Stack<'_>) -> Result<Vec<Value>, error::Error> {
     ops::parse_and_execute(s.split_tokens(), &mut stack)?;
     Ok(stack.into_vec())
 }
