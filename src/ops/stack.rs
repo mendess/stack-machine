@@ -103,13 +103,14 @@ impl FromStr for StackOp {
                 let v = s.pop()?;
                 if let Value::Block(b) = v {
                     let mut i = 0;
-                    while s.top()?.into() {
+                    while {
                         execute(&b, s)?;
                         i += 1;
                         if i >= 10_000 {
-                            return Err(RuntimeError::IterationMax(i).into())
+                            return Err(RuntimeError::IterationMax(i).into());
                         }
-                    }
+                        s.pop()?.into()
+                    } {}
                     Ok(())
                 } else {
                     crate::rt_error!(op: v => [while])
@@ -136,7 +137,9 @@ impl FromStr for StackOp {
                     {
                         let mut keys = take(&mut a)
                             .into_iter()
-                            .map(|v| calculate(v.clone(), b, &mut s.sub_stack()).map(|key| (v, key)))
+                            .map(|v| {
+                                calculate(v.clone(), b, &mut s.sub_stack()).map(|key| (v, key))
+                            })
                             .collect::<Result<Vec<_>, _>>()?;
                         keys.sort_by(|(_, key0), (_, key1)| key0.cmp(key1));
                         a.extend(keys.into_iter().map(|(v, _)| v));

@@ -101,7 +101,7 @@
 | x    | %   | Aplicar o bloco a um array/string                                                          |
 | x    | *   | Fold sobre um array usando o bloco                                                         |
 | x    | ,   | Filtrar um array/string utilizando um bloco                                                |
-|      | $   | Ordenar usando o bloco                                                                     |
+| x    | $   | Ordenar usando o bloco                                                                     |
 | x    | w   | Executa o bloco enquanto ele deixar um truthy no topo da stack; Remove da stack a condição |
 
 # Exemplos
