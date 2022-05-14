@@ -28,10 +28,10 @@ impl FromStr for BinaryOp {
             "-" => |a, b, _| Value::sub(a, b).map_err(crate::Error::from),
             "*" => |a, b, s| match (a, b) {
                 (Value::Array(a), Value::Block(b)) => {
-                    let mut temp_stack = Stack::with_input(s.input());
                     let mut a = a.into_iter();
                     let first = a.next().ok_or(RuntimeError::FoldingEmptyArray)?;
                     a.try_fold(first, |acc, v| {
+                        let mut temp_stack = s.sub_stack();
                         temp_stack.push(acc);
                         calculate(v, &b, &mut temp_stack)
                     })
@@ -44,27 +44,24 @@ impl FromStr for BinaryOp {
             "^" => |a, b, _| Value::bitxor(a, b).map_err(crate::Error::from),
             "%" => |a, b, s| match (a, b) {
                 (Value::Array(mut a), Value::Block(b)) => {
-                    let mut temp_stack = Stack::with_input(s.input());
                     for v in &mut a {
-                        *v = calculate(take(v), &b, &mut temp_stack)?;
+                        *v = calculate(take(v), &b, &mut s.sub_stack())?;
                     }
                     Ok(Value::Array(a))
                 }
-                (Value::Str(string), Value::Block(b)) => {
-                    let mut temp_stack = Stack::with_input(s.input());
-                    Ok(Value::Str(
-                        string
-                            .chars()
-                            .map(Value::Char)
-                            .map(|c| -> Result<char, crate::Error> {
-                                match calculate(c, &b, &mut temp_stack)? {
-                                    Value::Char(c) if temp_stack.is_empty() => Ok(c),
-                                    x => crate::rt_error!(convert: x, char),
-                                }
-                            })
-                            .collect::<Result<_, _>>()?,
-                    ))
-                }
+                (Value::Str(string), Value::Block(b)) => Ok(Value::Str(
+                    string
+                        .chars()
+                        .map(Value::Char)
+                        .map(|c| -> Result<char, crate::Error> {
+                            let mut temp_stack = s.sub_stack();
+                            match calculate(c, &b, &mut temp_stack)? {
+                                Value::Char(c) if temp_stack.is_empty() => Ok(c),
+                                x => crate::rt_error!(convert: x, char),
+                            }
+                        })
+                        .collect::<Result<_, _>>()?,
+                )),
                 (a, b) => Value::rem(a, b).map_err(crate::Error::from),
             },
             "e&" => |a: Value, b, _| Ok(a.and(b)),

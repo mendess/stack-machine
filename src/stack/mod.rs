@@ -39,26 +39,68 @@ impl ops::IndexMut<char> for Variables {
 }
 
 pub struct Stack<'i> {
+    #[cfg(debug_assertions)]
+    pub indent: usize,
     io_input: &'i mut dyn BufRead,
     variables: Rc<RefCell<Variables>>,
     s: Vec<Value>,
 }
 
+#[cfg(debug_assertions)]
+impl Drop for Stack<'_> {
+    fn drop(&mut self) {
+        println!(
+            "{}END[{}] {:?}",
+            " ".repeat(self.indent),
+            self.indent,
+            self.as_slice()
+        );
+    }
+}
+
 impl<'i> Stack<'i> {
-    pub fn with_input(io_input: &'i mut dyn BufRead) -> Self {
+    #[cfg(debug_assertions)]
+    fn new(
+        indent: usize,
+        io_input: &'i mut dyn BufRead,
+        variables: Rc<RefCell<Variables>>,
+    ) -> Self {
+        println!("{}START[{}]", " ".repeat(indent), indent);
         Self {
+            indent,
             io_input,
-            variables: Default::default(),
+            variables,
             s: Default::default(),
         }
     }
 
-    pub fn sub_stack(&mut self) -> Stack<'_> {
-        Stack {
-            io_input: &mut self.io_input,
-            variables: self.variables.clone(),
+    #[cfg(not(debug_assertions))]
+    fn new(io_input: &'i mut dyn BufRead, variables: Rc<RefCell<Variables>>) -> Self {
+        Self {
+            io_input,
+            variables,
             s: Default::default(),
         }
+    }
+
+    pub fn with_input(io_input: &'i mut dyn BufRead) -> Self {
+        Self::new(
+            #[cfg(debug_assertions)]
+            0,
+            io_input,
+            Default::default(),
+        )
+    }
+
+    pub fn sub_stack(&mut self) -> Stack<'_> {
+        #[cfg(debug_assertions)]
+        let indent = self.indent + 1;
+        Stack::new(
+            #[cfg(debug_assertions)]
+            indent,
+            &mut self.io_input,
+            self.variables.clone(),
+        )
     }
 
     pub fn push(&mut self, v: Value) {
@@ -99,8 +141,8 @@ impl<'i> Stack<'i> {
         self.s.is_empty()
     }
 
-    pub fn into_vec(self) -> Vec<Value> {
-        self.s
+    pub fn into_vec(mut self) -> Vec<Value> {
+        self.take()
     }
 
     pub fn take(&mut self) -> Vec<Value> {

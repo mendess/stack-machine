@@ -51,14 +51,16 @@ where
 {
     i.map(str::parse::<Box<dyn Operator>>).try_for_each(|op| {
         let mut op = op?;
-        if cfg!(debug_assertions) {
-            println!("{:?} apply `{}`", stack.as_slice(), op.as_str());
-        }
+        #[cfg(debug_assertions)]
+        println!(
+            "{}{:?} apply `{}`",
+            " ".repeat(stack.indent),
+            stack.as_slice(),
+            op.as_str()
+        );
+
         op.run_mut(stack)
     })?;
-    if cfg!(debug_assertions) {
-        println!("END {:?}", stack.as_slice());
-    }
     Ok(())
 }
 
@@ -69,9 +71,13 @@ where
 {
     i.into_iter()
         .try_for_each::<_, Result<(), crate::Error>>(|op| {
-            if cfg!(debug_assertions) {
-                println!("{:?} apply `{}`", stack.as_slice(), op.as_ref().as_str());
-            }
+            #[cfg(debug_assertions)]
+            println!(
+                "{}{:?} apply `{}`",
+                " ".repeat(stack.indent),
+                stack.as_slice(),
+                op.as_ref().as_str()
+            );
             op.as_ref().run(stack)?;
             Ok(())
         })?;

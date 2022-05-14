@@ -134,10 +134,9 @@ impl FromStr for StackOp {
                     }
                 } else if let (Value::Array(mut a), Value::Block(b)) = (s.pop()?, &top) {
                     {
-                        let mut temp_stack = Stack::with_input(s.input());
                         let mut keys = take(&mut a)
                             .into_iter()
-                            .map(|v| calculate(v.clone(), b, &mut temp_stack).map(|key| (v, key)))
+                            .map(|v| calculate(v.clone(), b, &mut s.sub_stack()).map(|key| (v, key)))
                             .collect::<Result<Vec<_>, _>>()?;
                         keys.sort_by(|(_, key0), (_, key1)| key0.cmp(key1));
                         a.extend(keys.into_iter().map(|(v, _)| v));

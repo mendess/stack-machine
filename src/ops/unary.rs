@@ -46,10 +46,9 @@ impl FromStr for UnaryOp {
                     Value::Str(s) => Ok(s.len().into()),
                     Value::Block(b) => match s.pop()? {
                         Value::Array(mut a) => {
-                            let mut temp_stack = Stack::with_input(s.input());
                             let mut indexes = Vec::with_capacity(a.len());
                             for (i, v) in a.iter().enumerate().rev() {
-                                if calculate(v.clone(), &b, &mut temp_stack)?.into() {
+                                if calculate(v.clone(), &b, &mut s.sub_stack())?.into() {
                                     indexes.push(i);
                                 }
                             }
@@ -69,7 +68,7 @@ impl FromStr for UnaryOp {
                             Ok(Value::Array(a))
                         }
                         Value::Str(mut string) => {
-                            let mut temp_stack = Stack::with_input(s.input());
+                            let mut temp_stack = s.sub_stack();
                             let mut indexes = Vec::with_capacity(string.len());
                             for (i, c) in string.char_indices().rev() {
                                 if calculate(Value::Char(c), &b, &mut temp_stack)?.into() {
