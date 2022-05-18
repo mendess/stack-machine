@@ -1,4 +1,4 @@
-use crate::{error::both::*, ops::Operator, util::str_ext::StrExt, run_on};
+use crate::{error::both::*, ops::Operator, run_on, util::str_ext::StrExt};
 use itertools::Itertools;
 use std::{
     cmp::{self, Ordering},
@@ -296,7 +296,9 @@ impl_math!(ops::Mul, mul {
     (Self::Str(s), Self::Integer(i)) => Self::Str(s.repeat(i as usize)),
 });
 impl_math!(ops::Div, div {
-    (Self::Str(s), Self::Str(delim)) => Self::Array(s.split(&delim).map(Value::from).collect()),
+    (Self::Str(s), Self::Str(delim)) => Self::Array(
+        s.split(&delim).filter(|x| !x.is_empty()).map(Value::from).collect()
+    ),
 });
 impl_math!(ops::Rem, rem);
 
